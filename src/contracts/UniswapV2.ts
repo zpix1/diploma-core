@@ -7,7 +7,11 @@ import { Token, TokenId } from '../config';
 
 import uniswapV2FactoryABI from '../abi/uniswap_v2_factory.json';
 import uniswapV2ExchangeABI from '../abi/uniswap_v2.json';
-import { combinations } from '../utils';
+import uniswapV2RouterABI from '../abi/uniswap_v2_router02.json';
+import { combinations } from '../utils/arrays';
+import { ERC20 } from './ERC20';
+import { assert } from 'console';
+import { TokenDecimal } from '../utils/decimals';
 
 export class UniswapV2Factory implements DEXFactory {
   constructor(
@@ -40,7 +44,11 @@ export class UniswapV2Factory implements DEXFactory {
             this.web3,
             x.id,
             y.id,
-            await contract.methods.getPair(x.address, y.address).call()
+            await contract.methods.getPair(x.address, y.address).call(),
+            new this.web3.eth.Contract(
+              uniswapV2RouterABI as never,
+              this.routerAddress
+            )
           );
         })
       )
@@ -51,11 +59,15 @@ export class UniswapV2Factory implements DEXFactory {
 export class UniswapV2Exchange extends BaseDEX implements DEX {
   private readonly contract: Contract;
 
+  private reserveX!: TokenDecimal;
+  private reserveY!: TokenDecimal;
+
   constructor(
     private readonly web3: Web3,
     readonly X: TokenId,
     readonly Y: TokenId,
-    readonly address: string
+    readonly address: string,
+    readonly router: Contract
   ) {
     super();
     this.contract = new web3.eth.Contract(
@@ -64,7 +76,61 @@ export class UniswapV2Exchange extends BaseDEX implements DEX {
     );
   }
 
+  private async swap(
+    amount: bigint,
+    r1: TokenDecimal,
+    r2: TokenDecimal
+  ): Promise<bigint> {
+    const amountInDecimals = TokenDecimal.fromAbsoluteValue(
+      amount,
+      r1.decimals
+    ).valueInDecimals;
+
+    const value = BigInt(
+      await this.router.methods
+        .getAmountOut(amountInDecimals, r1.valueInDecimals, r2.valueInDecimals)
+        .call()
+    );
+
+    const resultTokenDecimal = TokenDecimal.fromValueInDecimals(
+      value,
+      r2.decimals
+    );
+
+    return resultTokenDecimal.absoluteValue;
+  }
+
   async getSwapValue(amount: bigint, direction: 'XY' | 'YX'): Promise<bigint> {
-    return 0n;
+    if (direction === 'XY') {
+      return await this.swap(amount, this.reserveX, this.reserveY);
+    } else {
+      return await this.swap(amount, this.reserveY, this.reserveX);
+    }
+  }
+
+  async setup(): Promise<void> {
+    const result = await this.contract.methods.getReserves().call();
+    const [reserve0, reserve1] = [result.reserve0, result.reserve1].map(x =>
+      BigInt(x)
+    );
+
+    const token0 = new ERC20(
+      this.web3,
+      await this.contract.methods.token0().call()
+    );
+
+    const token1 = new ERC20(
+      this.web3,
+      await this.contract.methods.token1().call()
+    );
+
+    this.reserveX = TokenDecimal.fromValueInDecimals(
+      reserve0,
+      await token0.getDecimals()
+    );
+    this.reserveY = TokenDecimal.fromValueInDecimals(
+      reserve1,
+      await token1.getDecimals()
+    );
   }
 }

@@ -21,7 +21,7 @@ export const TOKENS = [
     isVirtual: false
   },
   {
-    id: 'BUSB',
+    id: 'BUSD',
     description: 'Binance USD',
     address: '0x4Fabb145d64652a948d72533023f6E7A623C7C53',
     isVirtual: false
@@ -36,6 +36,12 @@ export const TOKENS = [
     id: 'FRAX',
     description: 'Frax',
     address: '0x853d955aCEf822Db058eb8505911ED77F175b99e',
+    isVirtual: false
+  },
+  {
+    id: 'WETH',
+    description: 'Wrapped Ether',
+    address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     isVirtual: false
   }
 ] as const;

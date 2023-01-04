@@ -30,11 +30,27 @@ export class Worker {
     const contracts: DEX[] = [];
 
     for (const factory of factories) {
-      const factoryContracts = await factory.getSomeDEXes(TOKENS);
+      const setupContracts = (
+        await Promise.all(
+          (
+            await factory.getSomeDEXes(TOKENS)
+          ).map(async contract => {
+            try {
+              await contract.setup();
+              return contract;
+            } catch (e) {
+              console.error(`got error while setup of contract ${contract}`, e);
+              return undefined;
+            }
+          })
+        )
+      ).filter(x => Boolean(x)) as DEX[];
+
       console.log(
-        `Got ${factoryContracts.length} contracts from ${factory.name} factory`
+        `Got ${setupContracts.length} contracts from ${factory.name} factory`
       );
-      contracts.push(...factoryContracts);
+
+      contracts.push(...setupContracts);
     }
 
     return contracts;
@@ -45,12 +61,16 @@ export class Worker {
     const result = (
       await Promise.all(
         contracts.map(async contract => {
-          const inValue = 10n ** 5n;
           try {
+            const xValue = 10n ** 18n;
+            const yValue = await contract.getSwapValue(xValue, 'XY');
+            const xBackValue = await contract.getSwapValue(yValue, 'YX');
             return {
               contract,
-              inValue,
-              outValue: await contract.getSwapValue(inValue, 'XY')
+              xValue,
+              yValue,
+              xBackValue,
+              ratio: Number(xBackValue) / Number(xValue)
             };
           } catch (e) {
             console.error(`error while loading ${contract}`, e);

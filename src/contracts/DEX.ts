@@ -7,6 +7,8 @@ export interface DEX {
   readonly Y: TokenId;
 
   getSwapValue(amount: bigint, direction: 'XY' | 'YX'): Promise<bigint>;
+
+  setup(): Promise<void>;
 }
 
 export abstract class BaseDEX implements DEX {
@@ -14,6 +16,11 @@ export abstract class BaseDEX implements DEX {
     amount: bigint,
     direction: 'XY' | 'YX'
   ): Promise<bigint>;
+
+  async setup(): Promise<void> {
+    return;
+  }
+
   abstract readonly address?: string;
   abstract readonly X: TokenId;
   abstract readonly Y: TokenId;
