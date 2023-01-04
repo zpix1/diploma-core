@@ -21,18 +21,20 @@ export class UniswapV1Factory implements DEXFactory {
       this.address
     );
 
-    return await Promise.all(
-      tokens
-        .filter(({ isVirtual }) => !isVirtual)
-        .map(
-          async ({ id, address }) =>
-            new UniswapV1Exchange(
-              this.web3,
-              id,
-              await contract.methods.getExchange(address).call()
-            )
-        )
-    );
+    return (
+      await Promise.all(
+        tokens
+          .filter(({ isVirtual }) => !isVirtual)
+          .map(
+            async ({ id, address }) =>
+              new UniswapV1Exchange(
+                this.web3,
+                id,
+                await contract.methods.getExchange(address).call()
+              )
+          )
+      )
+    ).filter(({ address }) => !this.web3.utils.toBN(address).isZero());
   }
 }
 
@@ -57,7 +59,6 @@ export class UniswapV1Exchange extends BaseDEX implements DEX {
       direction === 'XY'
         ? this.contract.methods.getEthToTokenInputPrice
         : this.contract.methods.getTokenToEthInputPrice;
-    console.log(amount, this.address);
     return BigInt(await f(this.web3.utils.toBN(amount.toString())).call());
   }
 }

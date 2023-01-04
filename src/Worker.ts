@@ -3,6 +3,7 @@ import { DEFAULT_WEB3_PROVIDER_URL, TOKENS } from './config';
 import { DEXFactory } from './contracts/DEXFactory';
 import { UniswapV1Factory } from './contracts/UniswapV1';
 import { DEX } from './contracts/DEX';
+import { UniswapV2Factory } from './contracts/UniswapV2';
 
 export class Worker {
   readonly web3: Web3;
@@ -17,6 +18,12 @@ export class Worker {
         this.web3,
         'Uniswap V1',
         '0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95'
+      ),
+      new UniswapV2Factory(
+        this.web3,
+        'Uniswap V2',
+        '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
+        '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
       )
     ];
 

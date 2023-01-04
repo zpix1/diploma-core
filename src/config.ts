@@ -25,6 +25,18 @@ export const TOKENS = [
     description: 'Binance USD',
     address: '0x4Fabb145d64652a948d72533023f6E7A623C7C53',
     isVirtual: false
+  },
+  {
+    id: 'DAI',
+    description: 'Dai Stablecoin',
+    address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+    isVirtual: false
+  },
+  {
+    id: 'FRAX',
+    description: 'Frax',
+    address: '0x853d955aCEf822Db058eb8505911ED77F175b99e',
+    isVirtual: false
   }
 ] as const;
 
