@@ -1,9 +1,22 @@
 import Web3 from 'web3';
+
 import { DEFAULT_WEB3_PROVIDER_URL, TOKENS } from './config';
 import { DEXFactory } from './contracts/DEXFactory';
 import { UniswapV1Factory } from './contracts/UniswapV1';
 import { DEX } from './contracts/DEX';
 import { UniswapV2Factory } from './contracts/UniswapV2';
+import { DMGraph, GraphEdge, bellmanFord } from './utils/graph';
+
+interface ExchangeGraphEdge extends GraphEdge {
+  contract: DEX;
+  xValue: bigint;
+  yValue: bigint;
+  xBackValue: bigint;
+  backRatio: number;
+  xyRatio: number;
+  yxRatio: number;
+  direction: 'XY' | 'YX';
+}
 
 export class Worker {
   readonly web3: Web3;
@@ -56,29 +69,65 @@ export class Worker {
     return contracts;
   }
 
-  public async test() {
-    const contracts = await this.loadAllContracts();
-    const result = (
-      await Promise.all(
-        contracts.map(async contract => {
+  public async getAllRatios(
+    contracts: DEX[],
+    testValue: bigint
+  ): Promise<ExchangeGraphEdge[]> {
+    const edges: ExchangeGraphEdge[] = [];
+
+    await Promise.all(
+      contracts.map(async contract => {
+        for (const direction of ['XY', 'YX'] as const) {
           try {
-            const xValue = 10n ** 18n;
-            const yValue = await contract.getSwapValue(xValue, 'XY');
-            const xBackValue = await contract.getSwapValue(yValue, 'YX');
-            return {
-              contract,
+            const xValue = testValue;
+            const yValue = await contract.getSwapValue(xValue, direction);
+            const xBackValue = await contract.getSwapValue(
+              yValue,
+              direction === 'XY' ? 'YX' : 'XY'
+            );
+            const backRatio = Number(yValue) / Number(xValue);
+            const xyRatio = Number(yValue) / Number(xValue);
+            const yxRatio = Number(xValue) / Number(yValue);
+            const distance = -Math.log(xyRatio);
+            edges.push({
+              direction: direction,
+              to: direction === 'XY' ? contract.X : contract.Y,
+              from: direction === 'XY' ? contract.Y : contract.X,
+              distance,
               xValue,
               yValue,
               xBackValue,
-              ratio: Number(xBackValue) / Number(xValue)
-            };
+              backRatio,
+              xyRatio,
+              yxRatio,
+              contract
+            });
           } catch (e) {
             console.error(`error while loading ${contract}`, e);
-            return undefined;
           }
-        })
-      )
-    ).filter(x => Boolean(x));
-    return result;
+        }
+      })
+    );
+
+    return edges;
+  }
+
+  public createGraph(edges: ExchangeGraphEdge[]): DMGraph<ExchangeGraphEdge> {
+    const graph = new DMGraph<ExchangeGraphEdge>();
+    edges.forEach(edge => graph.addEdge(edge));
+    return graph;
+  }
+
+  public async doAll() {
+    const contracts = await this.loadAllContracts();
+    console.log(`Got ${contracts.length} contracts`);
+    const edges = await this.getAllRatios(contracts, 1n * 10n ** 17n);
+    console.log(`Got ${edges.length} edges`);
+
+    const graph = this.createGraph(edges);
+    console.log('Got graph', graph);
+
+    const distances = bellmanFord(graph, 'USDT');
+    console.log('distances', distances);
   }
 }
