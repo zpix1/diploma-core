@@ -1,3 +1,6 @@
+import { assert } from 'console';
+
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 export type GraphVertex = string;
 
 export interface GraphEdge {
@@ -8,8 +11,15 @@ export interface GraphEdge {
 
 export class DMGraph<Edge extends GraphEdge> {
   private connections: Map<GraphVertex, Edge[]> = new Map();
+  private edgeCount = 0;
+
+  getEdgeCount(): number {
+    return this.edgeCount;
+  }
 
   addEdge(edge: Edge): void {
+    this.edgeCount++;
+
     const fromConnections = this.connections.get(edge.from);
     if (fromConnections === undefined) {
       this.connections.set(edge.from, [edge]);
@@ -21,6 +31,10 @@ export class DMGraph<Edge extends GraphEdge> {
     if (toConnections === undefined) {
       this.connections.set(edge.to, []);
     }
+  }
+
+  getEdge(from: GraphVertex, to: GraphVertex): Edge | undefined {
+    return this.connections.get(from)?.find(x => x.to === to);
   }
 
   getAllVertices(): GraphVertex[] {
@@ -41,9 +55,11 @@ export const bellmanFord = <Edge extends GraphEdge>(
   startVertex: GraphVertex
 ):
   | {
+      hasNegativeCycle: false;
       distances: Map<GraphVertex, number>;
     }
   | {
+      hasNegativeCycle: true;
       negativeCycle: GraphVertex[];
     } => {
   const distances = new Map<GraphVertex, number>();
@@ -57,14 +73,20 @@ export const bellmanFord = <Edge extends GraphEdge>(
   distances.set(startVertex, 0);
 
   for (let i = 0; i < allVertices.length - 1; i++) {
-    allVertices.forEach(v => {
-      graph.getVertexEdges(v).forEach(({ to: u, distance: w }) => {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        distances.set(v, Math.min(distances.get(v)!, distances.get(u)! + w));
-        parents.set(v, u);
-      });
-    });
+    for (const u of allVertices) {
+      for (const vEdge of graph.getVertexEdges(u)) {
+        const v = vEdge.to;
+        const weight = vEdge.distance;
+        assert(u === vEdge.from, 'bad');
+        if (distances.get(u)! + weight < distances.get(v)!) {
+          distances.set(v, distances.get(u)! + weight);
+          parents.set(v, u);
+        }
+      }
+    }
   }
+
+  console.log('distances', distances);
 
   for (let index = 0; index < allVertices.length; index++) {
     const v = allVertices[index];
@@ -72,15 +94,23 @@ export const bellmanFord = <Edge extends GraphEdge>(
     for (let uIndex = 0; uIndex < vEdges.length; uIndex++) {
       const u = vEdges[uIndex].to;
       const w = vEdges[uIndex].distance;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       if (distances.get(v)! > distances.get(u)! + w) {
+        let cycleStart = v;
+        for (let i = 0; i < graph.getEdgeCount(); i++) {
+          cycleStart = parents.get(cycleStart)!;
+        }
+
         const negativeCycle: GraphVertex[] = [];
-        let t: GraphVertex | undefined = v;
-        while (t && (t !== v || negativeCycle.length === 0)) {
+        let t: GraphVertex | undefined = cycleStart;
+        while (t && (t !== cycleStart || negativeCycle.length === 0)) {
           negativeCycle.push(t);
           t = parents.get(t);
         }
+
+        negativeCycle.reverse();
+
         return {
+          hasNegativeCycle: true,
           negativeCycle
         };
       }
@@ -88,6 +118,7 @@ export const bellmanFord = <Edge extends GraphEdge>(
   }
 
   return {
+    hasNegativeCycle: false,
     distances
   };
 };
