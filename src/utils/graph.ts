@@ -9,7 +9,7 @@ export interface GraphEdge {
 export class DMGraph<Edge extends GraphEdge> {
   private connections: Map<GraphVertex, Edge[]> = new Map();
 
-  addEdge(edge: Edge) {
+  addEdge(edge: Edge): void {
     const fromConnections = this.connections.get(edge.from);
     if (fromConnections === undefined) {
       this.connections.set(edge.from, [edge]);
@@ -39,7 +39,13 @@ export class DMGraph<Edge extends GraphEdge> {
 export const bellmanFord = <Edge extends GraphEdge>(
   graph: DMGraph<Edge>,
   startVertex: GraphVertex
-) => {
+):
+  | {
+      distances: Map<GraphVertex, number>;
+    }
+  | {
+      negativeCycle: GraphVertex[];
+    } => {
   const distances = new Map<GraphVertex, number>();
   const parents = new Map<GraphVertex, GraphVertex>();
 
@@ -60,14 +66,28 @@ export const bellmanFord = <Edge extends GraphEdge>(
     });
   }
 
-  allVertices.forEach(v => {
-    graph.getVertexEdges(v).forEach(({ to: u, distance: w }) => {
+  for (let index = 0; index < allVertices.length; index++) {
+    const v = allVertices[index];
+    const vEdges = graph.getVertexEdges(v);
+    for (let uIndex = 0; uIndex < vEdges.length; uIndex++) {
+      const u = vEdges[uIndex].to;
+      const w = vEdges[uIndex].distance;
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       if (distances.get(v)! > distances.get(u)! + w) {
-        return 'Negative cycle!';
+        const negativeCycle: GraphVertex[] = [];
+        let t: GraphVertex | undefined = v;
+        while (t && (t !== v || negativeCycle.length === 0)) {
+          negativeCycle.push(t);
+          t = parents.get(t);
+        }
+        return {
+          negativeCycle
+        };
       }
-    });
-  });
+    }
+  }
 
-  return distances;
+  return {
+    distances
+  };
 };

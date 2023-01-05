@@ -9,12 +9,8 @@ import { DMGraph, GraphEdge, bellmanFord } from './utils/graph';
 
 interface ExchangeGraphEdge extends GraphEdge {
   contract: DEX;
-  xValue: bigint;
-  yValue: bigint;
-  xBackValue: bigint;
-  backRatio: number;
-  xyRatio: number;
-  yxRatio: number;
+  fromValue: bigint;
+  toValue: bigint;
   direction: 'XY' | 'YX';
 }
 
@@ -79,27 +75,24 @@ export class Worker {
       contracts.map(async contract => {
         for (const direction of ['XY', 'YX'] as const) {
           try {
-            const xValue = testValue;
-            const yValue = await contract.getSwapValue(xValue, direction);
-            const xBackValue = await contract.getSwapValue(
-              yValue,
-              direction === 'XY' ? 'YX' : 'XY'
+            const [from, to] =
+              direction === 'XY'
+                ? [contract.X, contract.Y]
+                : [contract.Y, contract.X];
+            const fromValue = testValue;
+            const toValue = await contract.getSwapValue(fromValue, direction);
+            const ratio = Number(toValue) / Number(fromValue);
+            const distance = -Math.log(ratio);
+            console.log(
+              `Can swap ${from} to ${to} with ratio ${ratio}/${distance} on ${contract}`
             );
-            const backRatio = Number(yValue) / Number(xValue);
-            const xyRatio = Number(yValue) / Number(xValue);
-            const yxRatio = Number(xValue) / Number(yValue);
-            const distance = -Math.log(xyRatio);
             edges.push({
               direction: direction,
-              to: direction === 'XY' ? contract.X : contract.Y,
-              from: direction === 'XY' ? contract.Y : contract.X,
+              from,
+              to,
               distance,
-              xValue,
-              yValue,
-              xBackValue,
-              backRatio,
-              xyRatio,
-              yxRatio,
+              fromValue,
+              toValue,
               contract
             });
           } catch (e) {
@@ -118,16 +111,17 @@ export class Worker {
     return graph;
   }
 
-  public async doAll() {
+  public async doAll(): Promise<void> {
     const contracts = await this.loadAllContracts();
     console.log(`Got ${contracts.length} contracts`);
-    const edges = await this.getAllRatios(contracts, 1n * 10n ** 17n);
+    const edges = await this.getAllRatios(contracts, 10000n * 10n ** 17n);
     console.log(`Got ${edges.length} edges`);
 
     const graph = this.createGraph(edges);
     console.log('Got graph', graph);
 
-    const distances = bellmanFord(graph, 'USDT');
-    console.log('distances', distances);
+    const start = 'BUSD';
+    const distances = bellmanFord(graph, start);
+    console.log('distances to', start, distances);
   }
 }

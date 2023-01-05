@@ -25,7 +25,7 @@ export abstract class BaseDEX implements DEX {
   abstract readonly X: TokenId;
   abstract readonly Y: TokenId;
 
-  toString() {
+  toString(): string {
     return `[DEX address=${this.address} X=${this.X} Y=${this.Y}]`;
   }
 }
