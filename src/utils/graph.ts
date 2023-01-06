@@ -100,6 +100,10 @@ export const bellmanFord = <Edge extends GraphEdge>(
           cycleStart = parents.get(cycleStart)!;
         }
 
+        if (cycleStart === undefined) {
+          break;
+        }
+
         const negativeCycle: GraphVertex[] = [];
         let t: GraphVertex | undefined = cycleStart;
         while (t && (t !== cycleStart || negativeCycle.length === 0)) {
