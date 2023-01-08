@@ -86,8 +86,6 @@ export const bellmanFord = <Edge extends GraphEdge>(
     }
   }
 
-  console.log('distances', distances);
-
   for (let index = 0; index < allVertices.length; index++) {
     const v = allVertices[index];
     const vEdges = graph.getVertexEdges(v);

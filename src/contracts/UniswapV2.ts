@@ -77,12 +77,12 @@ export class UniswapV2Exchange extends BaseDEX implements DEX {
   }
 
   private async swap(
-    amount: bigint,
+    absoluteAmount: bigint,
     r1: TokenDecimal,
     r2: TokenDecimal
-  ): Promise<bigint> {
+  ): Promise<TokenDecimal> {
     const amountInDecimals = TokenDecimal.fromAbsoluteValue(
-      amount,
+      absoluteAmount,
       r1.decimals
     ).valueInDecimals;
 
@@ -97,14 +97,17 @@ export class UniswapV2Exchange extends BaseDEX implements DEX {
       r2.decimals
     );
 
-    return resultTokenDecimal.absoluteValue;
+    return resultTokenDecimal;
   }
 
-  async getSwapValue(amount: bigint, direction: 'XY' | 'YX'): Promise<bigint> {
+  async getSwapValue(
+    absoluteAmount: bigint,
+    direction: 'XY' | 'YX'
+  ): Promise<TokenDecimal> {
     if (direction === 'XY') {
-      return await this.swap(amount, this.reserveX, this.reserveY);
+      return await this.swap(absoluteAmount, this.reserveX, this.reserveY);
     } else {
-      return await this.swap(amount, this.reserveY, this.reserveX);
+      return await this.swap(absoluteAmount, this.reserveY, this.reserveX);
     }
   }
 

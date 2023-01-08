@@ -1,4 +1,4 @@
-const DEFAULT_DECIMALS = 18n;
+export const DEFAULT_DECIMALS = 18n;
 
 export class TokenDecimal {
   readonly valueInDecimals: bigint;
@@ -18,11 +18,28 @@ export class TokenDecimal {
     this.valueInDecimals = absoluteValue / ptr;
   }
 
-  static fromAbsoluteValue(absoluteValue: bigint, decimals: bigint) {
+  public humanFormat(hint = ''): string {
+    const str = new Intl.NumberFormat('en-US').format(
+      Number(this.valueInDecimals) / Number(10n ** this.decimals)
+    );
+    return str;
+  }
+
+  public toString(): string {
+    return this.humanFormat();
+  }
+
+  static fromAbsoluteValue(
+    absoluteValue: bigint,
+    decimals: bigint
+  ): TokenDecimal {
     return new TokenDecimal(absoluteValue, decimals);
   }
 
-  static fromValueInDecimals(valueInDecimals: bigint, decimals: bigint) {
+  static fromValueInDecimals(
+    valueInDecimals: bigint,
+    decimals: bigint
+  ): TokenDecimal {
     return new TokenDecimal(
       valueInDecimals * 10n ** (DEFAULT_DECIMALS - decimals),
       decimals

@@ -7,6 +7,8 @@ import { Token, TokenId } from '../config';
 
 import uniswapV1FactoryABI from '../abi/uniswap_v1_factory.json';
 import uniswapV1ExchangeABI from '../abi/uniswap_v1.json';
+import { ERC20 } from './ERC20';
+import { DEFAULT_DECIMALS, TokenDecimal } from '../utils/decimals';
 
 export class UniswapV1Factory implements DEXFactory {
   constructor(
@@ -41,6 +43,7 @@ export class UniswapV1Factory implements DEXFactory {
 export class UniswapV1Exchange extends BaseDEX implements DEX {
   readonly X = 'ETH';
   private readonly contract: Contract;
+  private yDecimals!: bigint;
 
   constructor(
     private readonly web3: Web3,
@@ -54,11 +57,34 @@ export class UniswapV1Exchange extends BaseDEX implements DEX {
     );
   }
 
-  async getSwapValue(amount: bigint, direction: 'XY' | 'YX'): Promise<bigint> {
-    const f =
-      direction === 'XY'
-        ? this.contract.methods.getEthToTokenInputPrice
-        : this.contract.methods.getTokenToEthInputPrice;
-    return BigInt(await f(this.web3.utils.toBN(amount.toString())).call());
+  async getSwapValue(
+    amount: bigint,
+    direction: 'XY' | 'YX'
+  ): Promise<TokenDecimal> {
+    if (direction === 'XY') {
+      const value = BigInt(
+        await this.contract.methods
+          .getEthToTokenInputPrice(this.web3.utils.toBN(amount.toString()))
+          .call()
+      );
+      return TokenDecimal.fromValueInDecimals(value, this.yDecimals);
+    } else {
+      const inputValue = TokenDecimal.fromAbsoluteValue(
+        amount,
+        this.yDecimals
+      ).valueInDecimals;
+      console.log(amount, this.yDecimals, inputValue);
+      const value = BigInt(
+        await this.contract.methods
+          .getTokenToEthInputPrice(this.web3.utils.toBN(inputValue.toString()))
+          .call()
+      );
+      return TokenDecimal.fromAbsoluteValue(value, DEFAULT_DECIMALS);
+    }
+  }
+
+  async setup(): Promise<void> {
+    const tokenAddress = await this.contract.methods.tokenAddress().call();
+    this.yDecimals = await new ERC20(this.web3, tokenAddress).getDecimals();
   }
 }

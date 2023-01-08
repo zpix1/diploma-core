@@ -1,4 +1,5 @@
 import { TokenId } from '../config';
+import { TokenDecimal } from '../utils/decimals';
 
 export interface DEX {
   readonly address?: string;
@@ -6,16 +7,19 @@ export interface DEX {
   readonly X: TokenId;
   readonly Y: TokenId;
 
-  getSwapValue(amount: bigint, direction: 'XY' | 'YX'): Promise<bigint>;
+  getSwapValue(
+    absoluteAmount: bigint,
+    direction: 'XY' | 'YX'
+  ): Promise<TokenDecimal>;
 
   setup(): Promise<void>;
 }
 
 export abstract class BaseDEX implements DEX {
   abstract getSwapValue(
-    amount: bigint,
+    absoluteAmount: bigint,
     direction: 'XY' | 'YX'
-  ): Promise<bigint>;
+  ): Promise<TokenDecimal>;
 
   async setup(): Promise<void> {
     return;

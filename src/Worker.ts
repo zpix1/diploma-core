@@ -7,6 +7,8 @@ import { DEX } from './contracts/DEX';
 import { UniswapV2Factory } from './contracts/UniswapV2';
 import { DMGraph, GraphEdge, GraphVertex, bellmanFord } from './utils/graph';
 import { bigIntMinAndMax } from './utils/bigint';
+import { DEFAULT_DECIMALS, TokenDecimal } from './utils/decimals';
+import { toStringify } from './utils/format';
 
 const VALUE_THRESHOLD = 10n ** 16n;
 
@@ -16,6 +18,14 @@ interface ExchangeGraphEdge extends GraphEdge {
   toValue: bigint;
   ratio: number;
   direction: 'XY' | 'YX';
+}
+
+interface StrategyEntry {
+  from: string;
+  to: string;
+  fromValue: TokenDecimal;
+  toValue: TokenDecimal;
+  exchange: DEX;
 }
 
 export class Worker {
@@ -79,12 +89,17 @@ export class Worker {
       contracts.map(async contract => {
         try {
           const fromValue = testValue;
-          const toValue = await contract.getSwapValue(fromValue, 'XY');
-          const backValue = await contract.getSwapValue(toValue, 'YX');
+          const { absoluteValue: toValue } = await contract.getSwapValue(
+            fromValue,
+            'XY'
+          );
+          const { absoluteValue: backValue } = await contract.getSwapValue(
+            toValue,
+            'YX'
+          );
 
           const xyRatio = Number(toValue) / Number(fromValue);
           const yxRatio = Number(backValue) / Number(toValue);
-          // const backRatio = Number(backValue) / Number(fromValue);
 
           console.log(
             `Can swap ${contract.X}->${contract.Y} with ratio ${xyRatio} on ${contract} (${fromValue} -> ${toValue})`
@@ -96,7 +111,7 @@ export class Worker {
           if (
             bigIntMinAndMax(fromValue, toValue, backValue)[0] < VALUE_THRESHOLD
           ) {
-            console.log('skipping becouse some of values are too small');
+            console.log('skipping as some of values are too small');
             return;
           }
 
@@ -162,59 +177,126 @@ export class Worker {
     graph: DMGraph<ExchangeGraphEdge>,
     cycle: GraphVertex[],
     testValue: bigint
-  ): Promise<void> {
-    let curValue = testValue;
-    let prev = cycle[0];
-    cycle.push(prev);
-    let coef = 1;
+  ): Promise<{
+    startToken: string;
+    rate: number;
+    realRate: number;
+    startValue: string;
+    endValue: string;
+    profitPercent: number;
+    strategy: StrategyEntry[];
+  }> {
+    let curResult: TokenDecimal = TokenDecimal.fromAbsoluteValue(
+      testValue,
+      DEFAULT_DECIMALS
+    );
+    let cur = cycle[0];
+    cycle.push(cur);
+
+    const strategy: StrategyEntry[] = [];
+
+    let rate = 1;
     for (let i = 1; i < cycle.length; i++) {
-      const cur = cycle[i];
-      const edge = graph.getEdge(prev, cur);
+      const newCur = cycle[i];
+      const edge = graph.getEdge(cur, newCur);
       if (!edge) {
         throw new Error('Failed to find edge');
       }
 
-      const newCurValue = await edge.contract.getSwapValue(
-        curValue,
+      const newCurResult = await edge.contract.getSwapValue(
+        curResult.absoluteValue,
         edge.direction
       );
 
-      coef *= edge.ratio;
+      rate *= edge.ratio;
 
-      console.log(
-        `${prev}->${cur} (${curValue} -> ${newCurValue}) ${edge.contract}`
-      );
+      // console.log(
+      //   `${prev}->${cur} (${curValue} -> ${newCurValue} / ${realCurRate}) ${edge.contract}`
+      // );
 
-      prev = cur;
-      curValue = newCurValue;
+      strategy.push({
+        from: cur,
+        fromValue: curResult,
+        to: newCur,
+        toValue: newCurResult,
+        exchange: edge.contract
+      });
+
+      cur = newCur;
+      curResult = newCurResult;
     }
 
-    const realRatio = Number(curValue) / Number(testValue);
+    // hacky fix of problem that we dont know decimals for test value at start;
+    strategy[0] = {
+      ...strategy[0],
+      fromValue: TokenDecimal.fromAbsoluteValue(
+        testValue,
+        strategy[strategy.length - 1].toValue.decimals
+      )
+    };
 
-    console.log(
-      'coef',
-      coef,
-      'value',
-      `${testValue} -> ${curValue}`,
-      'realRatio',
-      realRatio
-    );
+    const realRate = Number(curResult.absoluteValue) / Number(testValue);
+    const profitPercent =
+      (Number(curResult.absoluteValue) / Number(testValue) - 1) * 100;
+
+    return {
+      startToken: strategy[0].to,
+      rate,
+      realRate,
+      startValue: `${strategy[0].fromValue}`,
+      endValue: `${strategy[strategy.length - 1].toValue}`,
+      profitPercent,
+      strategy
+    };
   }
 
   public async doAll(): Promise<void> {
+    const results = [];
     const contracts = await this.loadAllContracts();
     console.log(`Got ${contracts.length} contracts`);
-    const edges = await this.getAllRatios(contracts, 100n * 10n ** 17n);
-    console.log(`Got ${edges.length} edges`);
-    const graph = this.createGraph(edges);
-    console.log('Got graph', graph);
-    const start = 'BUSD';
-    const distances = bellmanFord(graph, start);
-    console.log('distances to', start, distances);
-    if (distances.hasNegativeCycle) {
-      await this.checkCycle(graph, distances.negativeCycle, 10n ** 19n);
-    } else {
-      console.log('No negative cycle found');
+    for (const testAmount of [
+      5n * 10n ** 16n,
+      10n ** 17n,
+      5n * 10n ** 17n,
+      10n ** 18n,
+      5n * 10n ** 18n,
+      10n ** 19n
+    ]) {
+      const edges = await this.getAllRatios(contracts, testAmount);
+      console.log(`Got ${edges.length} edges`);
+      const graph = this.createGraph(edges);
+      console.log('Got graph', graph);
+      for (const start of graph.getAllVertices()) {
+        const distances = bellmanFord(graph, start);
+        if (distances.hasNegativeCycle) {
+          const {
+            startToken,
+            startValue,
+            endValue,
+            rate,
+            realRate,
+            strategy,
+            profitPercent
+          } = await this.checkCycle(graph, distances.negativeCycle, testAmount);
+          results.push({
+            capital: `${strategy[0].fromValue}`,
+            startToken,
+            startValue,
+            endValue,
+            rate,
+            profitPercent,
+            realRate
+          });
+          strategy.forEach(e =>
+            toStringify(e, 'fromValue', 'toValue', 'exchange')
+          );
+          console.log('strategy');
+          console.table(strategy);
+          break;
+        }
+      }
     }
+    console.log('Found strategies:');
+    console.table(results);
   }
 }

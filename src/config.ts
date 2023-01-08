@@ -43,8 +43,33 @@ export const TOKENS = [
     description: 'Wrapped Ether',
     address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     isVirtual: false
+  },
+  {
+    id: 'SHIB',
+    description: 'Shiba Inu coin',
+    address: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
+    isVirtual: false
+  },
+  {
+    id: 'UNI',
+    description: 'Uniswap native',
+    address: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+    isVirtual: false
+  },
+  {
+    id: 'LINK',
+    description: 'Link coin',
+    address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+    isVirtual: false
+  },
+  {
+    id: 'LEO',
+    description: 'Bitfinex LEO Token',
+    address: '0x2AF5D2aD76741191D15Dfe7bF6aC92d4Bd912Ca3',
+    isVirtual: false
   }
 ] as const;
 
 export type Token = typeof TOKENS[number];
 export type TokenId = Token['id'];
+export const TOKENS_MAP = new Map(TOKENS.map(t => [t.id, t]));
