@@ -251,51 +251,67 @@ export class Worker {
   }
 
   public async doAll(): Promise<void> {
-    const results = [];
+    const results: any[] = [];
     const contracts = await this.loadAllContracts();
     console.log(`Got ${contracts.length} contracts`);
-    for (const testAmount of [
-      5n * 10n ** 16n,
-      10n ** 17n,
-      5n * 10n ** 17n,
-      10n ** 18n,
-      5n * 10n ** 18n,
-      10n ** 19n
-    ]) {
-      const edges = await this.getAllRatios(contracts, testAmount);
-      console.log(`Got ${edges.length} edges`);
-      const graph = this.createGraph(edges);
-      console.log('Got graph', graph);
-      for (const start of graph.getAllVertices()) {
-        const distances = bellmanFord(graph, start);
-        if (distances.hasNegativeCycle) {
-          const {
-            startToken,
-            startValue,
-            endValue,
-            rate,
-            realRate,
-            strategy,
-            profitPercent
-          } = await this.checkCycle(graph, distances.negativeCycle, testAmount);
-          results.push({
-            capital: `${strategy[0].fromValue}`,
-            startToken,
-            startValue,
-            endValue,
-            rate,
-            profitPercent,
-            realRate
-          });
-          strategy.forEach(e =>
-            toStringify(e, 'fromValue', 'toValue', 'exchange')
-          );
-          console.log('strategy');
-          console.table(strategy);
-          break;
+    await Promise.all(
+      [
+        5n * 10n ** 16n,
+        10n ** 17n,
+        5n * 10n ** 17n,
+        10n ** 18n,
+        5n * 10n ** 18n,
+        10n ** 19n
+      ].map(async testAmount => {
+        const edges = await this.getAllRatios(contracts, testAmount);
+        console.log(`Got ${edges.length} edges`);
+        const graph = this.createGraph(edges);
+        console.log('Got graph', graph);
+        for (const start of graph.getAllVertices()) {
+          const distances = bellmanFord(graph, start);
+          if (distances.hasNegativeCycle) {
+            const {
+              startToken,
+              startValue,
+              endValue,
+              rate,
+              realRate,
+              strategy,
+              profitPercent
+            } = await this.checkCycle(
+              graph,
+              distances.negativeCycle,
+              testAmount
+            );
+            results.push({
+              capital: `${strategy[0].fromValue}`,
+              status: 'FOUND',
+              startToken,
+              startValue,
+              endValue,
+              rate,
+              profitPercent,
+              realRate,
+              strategy
+            });
+            strategy.forEach(e =>
+              toStringify(e, 'fromValue', 'toValue', 'exchange')
+            );
+            console.log('strategy');
+            console.table(strategy);
+            return;
+          }
         }
-      }
-    }
+        results.push({
+          capital: `${TokenDecimal.fromAbsoluteValue(
+            testAmount,
+            DEFAULT_DECIMALS
+          )}`,
+          status: 'NOT FOUND'
+        });
+      })
+    );
+    results.sort((a, b) => Number(a.capital) - Number(b.capital));
     console.log('Found strategies:');
     console.table(results);
   }
