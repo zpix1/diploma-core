@@ -1,15 +1,12 @@
-type StringLiteral<T> = T extends string
-  ? string extends T
-    ? never
-    : T
-  : never;
-export const toStringify = <T>(
-  obj: Record<StringLiteral<T>, any>,
-  ...props: T[]
-): void => {
-  for (const prop of Object.keys(obj)) {
-    if (props.includes(prop as T)) {
-      obj[prop as StringLiteral<T>] = obj[prop as StringLiteral<T>].toString();
-    }
+export const objMap = <T extends Record<string, any>>(
+  t: T,
+  funs: {
+    [k in keyof T]?: (v: T[k]) => any;
   }
+): any => {
+  return Object.fromEntries(
+    Object.entries(t).map(([key, value]) => {
+      return [key, funs[key]?.(value) ?? value];
+    })
+  );
 };

@@ -19,14 +19,19 @@ export class TokenDecimal {
   }
 
   public humanFormat(hint = ''): string {
-    const str = new Intl.NumberFormat('en-US').format(
-      Number(this.valueInDecimals) / Number(10n ** this.decimals)
-    );
+    const str = new Intl.NumberFormat('en-US', {
+      notation: 'compact',
+      minimumFractionDigits: 3
+    }).format(Number(this.valueInDecimals) / Number(10n ** this.decimals));
     return str;
   }
 
   public toString(): string {
     return this.humanFormat();
+  }
+
+  public toValue(): number {
+    return Number(this.valueInDecimals) / Number(10n ** this.decimals);
   }
 
   static fromAbsoluteValue(

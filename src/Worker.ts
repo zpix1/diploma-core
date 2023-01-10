@@ -1,6 +1,11 @@
 import Web3 from 'web3';
 
-import { DEFAULT_WEB3_PROVIDER_URL, TOKENS } from './config';
+import {
+  DEFAULT_WEB3_PROVIDER_URL,
+  TOKENS,
+  TOKENS_MAP,
+  TokenId
+} from './config';
 import { DEXFactory } from './contracts/DEXFactory';
 import { UniswapV1Factory } from './contracts/UniswapV1';
 import { DEX } from './contracts/DEX';
@@ -8,7 +13,7 @@ import { UniswapV2Factory } from './contracts/UniswapV2';
 import { DMGraph, GraphEdge, GraphVertex, bellmanFord } from './utils/graph';
 import { bigIntMinAndMax } from './utils/bigint';
 import { DEFAULT_DECIMALS, TokenDecimal } from './utils/decimals';
-import { toStringify } from './utils/format';
+import { objMap } from './utils/format';
 
 const VALUE_THRESHOLD = 10n ** 16n;
 
@@ -183,7 +188,8 @@ export class Worker {
     realRate: number;
     startValue: string;
     endValue: string;
-    profitPercent: number;
+    profit: number;
+    profitPercent: string;
     strategy: StrategyEntry[];
   }> {
     let curResult: TokenDecimal = TokenDecimal.fromAbsoluteValue(
@@ -236,16 +242,25 @@ export class Worker {
     };
 
     const realRate = Number(curResult.absoluteValue) / Number(testValue);
-    const profitPercent =
-      (Number(curResult.absoluteValue) / Number(testValue) - 1) * 100;
+    const profitPercentNumber =
+      Number(curResult.absoluteValue) / Number(testValue) - 1;
 
+    const startDecimal = strategy[0].fromValue;
+    const endDecimal = strategy[strategy.length - 1].toValue;
     return {
       startToken: strategy[0].to,
       rate,
       realRate,
-      startValue: `${strategy[0].fromValue}`,
-      endValue: `${strategy[strategy.length - 1].toValue}`,
-      profitPercent,
+      startValue: `${startDecimal}`,
+      endValue: `${endDecimal}`,
+      profit: TokenDecimal.fromAbsoluteValue(
+        endDecimal.absoluteValue - startDecimal.absoluteValue,
+        startDecimal.decimals
+      ).toValue(),
+      profitPercent: new Intl.NumberFormat('en-US', {
+        style: 'percent',
+        minimumFractionDigits: 2
+      }).format(profitPercentNumber),
       strategy
     };
   }
@@ -261,7 +276,9 @@ export class Worker {
         5n * 10n ** 17n,
         10n ** 18n,
         5n * 10n ** 18n,
-        10n ** 19n
+        10n ** 19n,
+        5n * 10n ** 19n,
+        10n ** 20n
       ].map(async testAmount => {
         const edges = await this.getAllRatios(contracts, testAmount);
         console.log(`Got ${edges.length} edges`);
@@ -275,6 +292,7 @@ export class Worker {
               startValue,
               endValue,
               rate,
+              profit,
               realRate,
               strategy,
               profitPercent
@@ -290,15 +308,36 @@ export class Worker {
               startValue,
               endValue,
               rate,
+              profit,
+              profitInUSD: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+              }).format(
+                profit *
+                  (TOKENS_MAP.get(startToken as TokenId)?.inDollars ?? NaN)
+              ),
+              capitalInUSD: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+              }).format(
+                strategy[0].fromValue.toValue() *
+                  (TOKENS_MAP.get(startToken as TokenId)?.inDollars ?? NaN)
+              ),
               profitPercent,
               realRate,
               strategy
             });
-            strategy.forEach(e =>
-              toStringify(e, 'fromValue', 'toValue', 'exchange')
-            );
+            const formattedStrategy = strategy.map(e => ({
+              fromValueAbsolute: e.fromValue.absoluteValue.toString(),
+              toValueAbsolute: e.toValue.absoluteValue.toString(),
+              ...objMap(e, {
+                fromValue: v => v.toString(),
+                toValue: v => v.toString(),
+                exchange: v => v.toString()
+              })
+            }));
             console.log('strategy');
-            console.table(strategy);
+            console.table(formattedStrategy);
             return;
           }
         }
