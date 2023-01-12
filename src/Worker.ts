@@ -248,7 +248,7 @@ export class Worker {
     const startDecimal = strategy[0].fromValue;
     const endDecimal = strategy[strategy.length - 1].toValue;
     return {
-      startToken: strategy[0].to,
+      startToken: strategy[0].from,
       rate,
       realRate,
       startValue: `${startDecimal}`,
@@ -278,7 +278,9 @@ export class Worker {
         5n * 10n ** 18n,
         10n ** 19n,
         5n * 10n ** 19n,
-        10n ** 20n
+        10n ** 20n,
+        10n ** 21n,
+        10n ** 22n
       ].map(async testAmount => {
         const edges = await this.getAllRatios(contracts, testAmount);
         console.log(`Got ${edges.length} edges`);
@@ -309,6 +311,9 @@ export class Worker {
               endValue,
               rate,
               profit,
+              _profitInUSD:
+                profit *
+                (TOKENS_MAP.get(startToken as TokenId)?.inDollars ?? NaN),
               profitInUSD: new Intl.NumberFormat('en-US', {
                 style: 'currency',
                 currency: 'USD'
@@ -327,17 +332,7 @@ export class Worker {
               realRate,
               strategy
             });
-            const formattedStrategy = strategy.map(e => ({
-              fromValueAbsolute: e.fromValue.absoluteValue.toString(),
-              toValueAbsolute: e.toValue.absoluteValue.toString(),
-              ...objMap(e, {
-                fromValue: v => v.toString(),
-                toValue: v => v.toString(),
-                exchange: v => v.toString()
-              })
-            }));
-            console.log('strategy');
-            console.table(formattedStrategy);
+
             return;
           }
         }
@@ -350,8 +345,29 @@ export class Worker {
         });
       })
     );
-    results.sort((a, b) => Number(a.capital) - Number(b.capital));
-    console.log('Found strategies:');
+    results.sort((a, b) => {
+      const _a = a._profitInUSD || 0;
+      const _b = b._profitInUSD || 0;
+      const t = _b - _a;
+      return t;
+    });
+    for (const { strategy, capital } of results) {
+      if (!strategy) {
+        continue;
+      }
+      console.log('strategy for', capital);
+      const formattedStrategy = strategy.map((e: StrategyEntry) => ({
+        fromValueAbsolute: e.fromValue.absoluteValue.toString(),
+        toValueAbsolute: e.toValue.absoluteValue.toString(),
+        ...objMap(e, {
+          fromValue: v => v.toString(),
+          toValue: v => v.toString(),
+          exchange: v => v.toString()
+        })
+      }));
+      console.table(formattedStrategy);
+    }
+    console.log(`Total results (${new Date().toLocaleString()}): `);
     console.table(results);
   }
 }

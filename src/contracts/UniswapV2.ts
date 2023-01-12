@@ -10,7 +10,6 @@ import uniswapV2ExchangeABI from '../abi/uniswap_v2.json';
 import uniswapV2RouterABI from '../abi/uniswap_v2_router02.json';
 import { combinations } from '../utils/arrays';
 import { ERC20 } from './ERC20';
-import { assert } from 'console';
 import { TokenDecimal } from '../utils/decimals';
 
 export class UniswapV2Factory implements DEXFactory {
