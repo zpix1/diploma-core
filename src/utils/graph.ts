@@ -33,8 +33,8 @@ export class DMGraph<Edge extends GraphEdge> {
     }
   }
 
-  getEdge(from: GraphVertex, to: GraphVertex): Edge | undefined {
-    return this.connections.get(from)?.find(x => x.to === to);
+  getEdges(from: GraphVertex, to: GraphVertex): Edge[] | undefined {
+    return this.connections.get(from)?.filter(x => x.to === to);
   }
 
   getAllVertices(): GraphVertex[] {

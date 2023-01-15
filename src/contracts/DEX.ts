@@ -16,6 +16,8 @@ export interface DEX {
 }
 
 export abstract class BaseDEX implements DEX {
+  constructor(private readonly name: string) {}
+
   abstract getSwapValue(
     absoluteAmount: bigint,
     direction: 'XY' | 'YX'
@@ -30,6 +32,6 @@ export abstract class BaseDEX implements DEX {
   abstract readonly Y: TokenId;
 
   toString(): string {
-    return `[DEX address=${this.address} X=${this.X} Y=${this.Y}]`;
+    return `[${this.name} address=${this.address} X=${this.X} Y=${this.Y}]`;
   }
 }

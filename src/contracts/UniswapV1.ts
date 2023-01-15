@@ -50,7 +50,7 @@ export class UniswapV1Exchange extends BaseDEX implements DEX {
     readonly Y: TokenId,
     readonly address: string
   ) {
-    super();
+    super('Uniswap V1');
     this.contract = new web3.eth.Contract(
       uniswapV1ExchangeABI as never,
       address

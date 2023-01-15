@@ -14,6 +14,10 @@ import { DMGraph, GraphEdge, GraphVertex, bellmanFord } from './utils/graph';
 import { bigIntMinAndMax } from './utils/bigint';
 import { DEFAULT_DECIMALS, TokenDecimal } from './utils/decimals';
 import { objMap } from './utils/format';
+import {
+  QUOTER_CONTRACT_ADDRESS,
+  UniswapV3Factory
+} from './contracts/UniswapV3';
 
 const VALUE_THRESHOLD = 10n ** 16n;
 
@@ -52,7 +56,8 @@ export class Worker {
         'Uniswap V2',
         '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
         '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
-      )
+      ),
+      new UniswapV3Factory(this.web3, 'Uniswap V3', QUOTER_CONTRACT_ADDRESS)
     ];
 
     const contracts: DEX[] = [];
@@ -204,7 +209,9 @@ export class Worker {
     let rate = 1;
     for (let i = 1; i < cycle.length; i++) {
       const newCur = cycle[i];
-      const edge = graph.getEdge(cur, newCur);
+      const edge = graph
+        .getEdges(cur, newCur)
+        ?.reduce((a, b) => (a.distance < b.distance ? a : b));
       if (!edge) {
         throw new Error('Failed to find edge');
       }
@@ -232,7 +239,7 @@ export class Worker {
       curResult = newCurResult;
     }
 
-    // hacky fix of problem that we dont know decimals for test value at start;
+    // hacky fix of problem that we dont know decimals for test value at start
     strategy[0] = {
       ...strategy[0],
       fromValue: TokenDecimal.fromAbsoluteValue(
