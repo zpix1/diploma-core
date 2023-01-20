@@ -85,6 +85,9 @@ export class UniswapV1Exchange extends BaseDEX implements DEX {
 
   async setup(): Promise<void> {
     const tokenAddress = await this.contract.methods.tokenAddress().call();
-    this.yDecimals = await new ERC20(this.web3, tokenAddress).getDecimals();
+    this.yDecimals = await ERC20.getInstanceOf(
+      this.web3,
+      tokenAddress
+    ).getDecimals();
   }
 }

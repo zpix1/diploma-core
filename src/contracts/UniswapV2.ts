@@ -116,12 +116,12 @@ export class UniswapV2Exchange extends BaseDEX implements DEX {
       BigInt(x)
     );
 
-    const token0 = new ERC20(
+    const token0 = ERC20.getInstanceOf(
       this.web3,
       await this.contract.methods.token0().call()
     );
 
-    const token1 = new ERC20(
+    const token1 = ERC20.getInstanceOf(
       this.web3,
       await this.contract.methods.token1().call()
     );

@@ -135,8 +135,8 @@ export class UniswapV3Exchange extends BaseDEX implements DEX {
   }
 
   async setup(): Promise<void> {
-    const token0Pre = new ERC20(this.web3, this.XAdr);
-    const token1Pre = new ERC20(this.web3, this.YAdr);
+    const token0Pre = ERC20.getInstanceOf(this.web3, this.XAdr);
+    const token1Pre = ERC20.getInstanceOf(this.web3, this.YAdr);
 
     const currentPoolAddress = computePoolAddress({
       factoryAddress: POOL_FACTORY_CONTRACT_ADDRESS,
