@@ -62,7 +62,8 @@ export class Worker {
       new CurveV1Factory(
         this.web3,
         'Curve V1',
-        '0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2'
+        '0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2',
+        '0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5'
       )
     ];
 
@@ -127,7 +128,7 @@ export class Worker {
           if (
             bigIntMinAndMax(fromValue, toValue, backValue)[0] < VALUE_THRESHOLD
           ) {
-            console.log('skipping as some of values are too small');
+            // console.log('skipping as some of values are too small');
             return;
           }
 
@@ -378,7 +379,7 @@ export class Worker {
           exchange: v => v.toString()
         })
       }));
-      console.table(formattedStrategy);
+      // console.table(formattedStrategy);
     }
     console.log(`Total results (${new Date().toLocaleString()}): `);
     console.table(results);

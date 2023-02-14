@@ -9,19 +9,25 @@ import { combinations } from '../utils/arrays';
 import { ERC20 } from './ERC20';
 import { TokenDecimal } from '../utils/decimals';
 
-import curveV1RegistryABI from '../abi/curve_v1_registry.json';
+import curveV1ExchangeRegistryABI from '../abi/curve_v1_registry.json';
+import curveV1AddressRegistryABI from '../abi/curve_v1_address_registry.json';
 
 export class CurveV1Factory implements DEXFactory {
   constructor(
     private readonly web3: Web3,
     public readonly name: string,
-    private readonly registryAddress: string
+    private readonly exchangeRegistryAddress: string,
+    private readonly poolRegistryAddress: string
   ) {}
 
   async getSomeDEXes(tokens: Token[]): Promise<DEX[]> {
-    const registry = new this.web3.eth.Contract(
-      curveV1RegistryABI as never,
-      this.registryAddress
+    const exchangeRegistry = new this.web3.eth.Contract(
+      curveV1ExchangeRegistryABI as never,
+      this.exchangeRegistryAddress
+    );
+    const poolRegistry = new this.web3.eth.Contract(
+      curveV1AddressRegistryABI as never,
+      this.poolRegistryAddress
     );
 
     return await Promise.all(
@@ -36,7 +42,18 @@ export class CurveV1Factory implements DEXFactory {
           const b = BigInt(p2.address);
           return a < b ? -1 : a > b ? 1 : 0;
         });
-        return new CurveV1Exchange(this.web3, x.id, y.id, x, y, registry);
+        const poolAddress = await poolRegistry.methods
+          .find_pool_for_coins(x.address, y.address)
+          .call();
+        return new CurveV1Exchange(
+          this.web3,
+          x.id,
+          y.id,
+          x,
+          y,
+          exchangeRegistry,
+          poolAddress
+        );
       })
     );
   }
@@ -45,7 +62,6 @@ export class CurveV1Factory implements DEXFactory {
 export class CurveV1Exchange extends BaseDEX implements DEX {
   private token0!: ERC20;
   private token1!: ERC20;
-  readonly address?: string;
 
   constructor(
     private readonly web3: Web3,
@@ -53,7 +69,8 @@ export class CurveV1Exchange extends BaseDEX implements DEX {
     readonly Y: TokenId,
     readonly XTokenData: Token,
     readonly YTokenData: Token,
-    readonly registry: Contract
+    private readonly registry: Contract,
+    readonly address: string
   ) {
     super('Curve V1');
   }
@@ -68,11 +85,14 @@ export class CurveV1Exchange extends BaseDEX implements DEX {
       await t1.getDecimals()
     ).valueInDecimals;
 
-    const amount = (
-      await this.registry.methods
-        .get_best_rate(t1.address, t2.address, amountInDecimals)
-        .call()
-    )[1];
+    const amount = await this.registry.methods
+      .get_exchange_amount(
+        this.address,
+        t1.address,
+        t2.address,
+        amountInDecimals
+      )
+      .call();
 
     const value = BigInt(amount);
 

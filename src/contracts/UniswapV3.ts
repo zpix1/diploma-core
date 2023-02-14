@@ -96,12 +96,12 @@ export class UniswapV3Exchange extends BaseDEX implements DEX {
       await token0.getDecimals()
     ).valueInDecimals;
 
-    console.table({
-      token0: token0.address,
-      token1: token1.address,
-      fee: this.fee,
-      amount: amountInDecimals
-    });
+    // console.table({
+    //   token0: token0.address,
+    //   token1: token1.address,
+    //   fee: this.fee,
+    //   amount: amountInDecimals
+    // });
 
     const value = BigInt(
       await this.quoter.methods
@@ -164,8 +164,8 @@ export class UniswapV3Exchange extends BaseDEX implements DEX {
       poolContract.methods.fee().call()
     ]);
 
-    if (fee !== this.fee) {
-      throw new Error('invalid token fee');
+    if (Number(fee) !== this.fee) {
+      throw new Error(`invalid token fee: ${fee} != ${this.fee}`);
     }
 
     if (token0Adr !== token0Pre.address) {

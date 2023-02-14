@@ -96,12 +96,12 @@ export class UniswapV3Exchange extends BaseDEX implements DEX {
       await token0.getDecimals()
     ).valueInDecimals;
 
-    console.table({
-      token0: token0.address,
-      token1: token1.address,
-      fee: this.fee,
-      amount: amountInDecimals
-    });
+    // console.table({
+    //   token0: token0.address,
+    //   token1: token1.address,
+    //   fee: this.fee,
+    //   amount: amountInDecimals
+    // });
 
     const value = BigInt(
       await this.quoter.methods
