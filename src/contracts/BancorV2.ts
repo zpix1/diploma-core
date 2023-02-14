@@ -11,7 +11,7 @@ import { DEXFactory } from './DEXFactory';
 import { ERC20 } from './ERC20';
 import { SupportedChainId, Token as UniswapToken } from '@uniswap/sdk-core';
 
-export class UniswapV3Factory implements DEXFactory {
+export class BancorV2Factory implements DEXFactory {
   constructor(
     private readonly web3: Web3,
     public readonly name: string,
@@ -163,10 +163,6 @@ export class UniswapV3Exchange extends BaseDEX implements DEX {
       poolContract.methods.token1().call(),
       poolContract.methods.fee().call()
     ]);
-
-    if (fee !== this.fee) {
-      throw new Error('invalid token fee');
-    }
 
     if (token0Adr !== token0Pre.address) {
       throw new Error('invalid token');

@@ -18,6 +18,7 @@ import {
   QUOTER_CONTRACT_ADDRESS,
   UniswapV3Factory
 } from './contracts/UniswapV3';
+import { CurveV1Factory } from './contracts/CurveV1';
 
 const VALUE_THRESHOLD = 10n ** 16n;
 
@@ -57,7 +58,12 @@ export class Worker {
         '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
         '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
       ),
-      new UniswapV3Factory(this.web3, 'Uniswap V3', QUOTER_CONTRACT_ADDRESS)
+      new UniswapV3Factory(this.web3, 'Uniswap V3', QUOTER_CONTRACT_ADDRESS),
+      new CurveV1Factory(
+        this.web3,
+        'Curve V1',
+        '0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2'
+      )
     ];
 
     const contracts: DEX[] = [];
