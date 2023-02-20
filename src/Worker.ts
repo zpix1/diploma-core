@@ -19,58 +19,48 @@ import {
   UniswapV3Factory
 } from './contracts/UniswapV3';
 import { CurveV1Factory } from './contracts/CurveV1';
+import {
+  ExchangeGraphEdge,
+  StrategyEntry,
+  SearchResult,
+  Config
+} from './types';
+import { saveSearchResult } from './utils/dbClient';
 
 const VALUE_THRESHOLD = 10n ** 16n;
 
-interface ExchangeGraphEdge extends GraphEdge {
-  contract: DEX;
-  fromValue: bigint;
-  toValue: bigint;
-  ratio: number;
-  direction: 'XY' | 'YX';
-}
-
-interface StrategyEntry {
-  from: string;
-  to: string;
-  fromValue: TokenDecimal;
-  toValue: TokenDecimal;
-  usedEdge: ExchangeGraphEdge;
-  exchange: DEX;
-}
-
 export class Worker {
   readonly web3: Web3;
+  readonly factories: DEXFactory[];
 
   public constructor() {
     this.web3 = new Web3(Web3.givenProvider || DEFAULT_WEB3_PROVIDER_URL);
-  }
-
-  public async loadAllContracts(): Promise<DEX[]> {
-    const factories: DEXFactory[] = [
-      // new UniswapV1Factory(
-      //   this.web3,
-      //   'Uniswap V1',
-      //   '0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95'
-      // ),
+    this.factories = [
+      new UniswapV1Factory(
+        this.web3,
+        'Uniswap V1',
+        '0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95'
+      ),
       new UniswapV2Factory(
         this.web3,
         'Uniswap V2',
         '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
         '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
       ),
-      new UniswapV3Factory(this.web3, 'Uniswap V3', QUOTER_CONTRACT_ADDRESS)
-      // new CurveV1Factory(
-      //   this.web3,
-      //   'Curve V1',
-      //   '0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2',
-      //   '0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5'
-      // )
+      new UniswapV3Factory(this.web3, 'Uniswap V3', QUOTER_CONTRACT_ADDRESS),
+      new CurveV1Factory(
+        this.web3,
+        'Curve V1',
+        '0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2',
+        '0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5'
+      )
     ];
+  }
 
+  public async loadAllContracts(): Promise<DEX[]> {
     const contracts: DEX[] = [];
 
-    for (const factory of factories) {
+    for (const factory of this.factories) {
       const setupContracts = (
         await Promise.all(
           (
@@ -97,6 +87,13 @@ export class Worker {
     return contracts;
   }
 
+  private normalizeValue(value: bigint, token: TokenId): bigint {
+    return (
+      value /
+      (BigInt((TOKENS_MAP.get(token)?.inDollars ?? 1) * 100000000) / 100000000n)
+    );
+  }
+
   public async getAllRatios(
     contracts: DEX[],
     testValue: bigint
@@ -106,34 +103,34 @@ export class Worker {
     await Promise.all(
       contracts.map(async contract => {
         try {
-          const fromValue =
-            testValue /
-            (BigInt((TOKENS_MAP.get(contract.X)?.inDollars ?? 1) * 100) / 100n);
+          const fromValueOrigin = this.normalizeValue(testValue, contract.X);
+          const toValueOrigin = this.normalizeValue(testValue, contract.Y);
+
           const { absoluteValue: toValue } = await contract.getSwapValue(
-            fromValue,
+            fromValueOrigin,
             'XY'
           );
-          const { absoluteValue: backValue } = await contract.getSwapValue(
-            toValue,
+          const { absoluteValue: fromValue } = await contract.getSwapValue(
+            toValueOrigin,
             'YX'
           );
 
-          const xyRatio = Number(toValue) / Number(fromValue);
-          const yxRatio = Number(backValue) / Number(toValue);
+          const xyRatio = Number(toValue) / Number(fromValueOrigin);
+          const yxRatio = Number(fromValue) / Number(toValueOrigin);
 
-          console.log(
-            `Can swap ${contract.X}->${contract.Y} with ratio ${xyRatio} on ${contract} (${fromValue} -> ${toValue})`
-          );
-          console.log(
-            `Can swap ${contract.Y}->${contract.X} with ratio ${yxRatio} on ${contract} (${toValue} -> ${backValue})`
-          );
+          // console.log(
+          //   `Can swap ${contract.X}->${contract.Y} with ratio ${xyRatio} on ${contract} (${fromValue} -> ${toValue})`
+          // );
+          // console.log(
+          //   `Can swap ${contract.Y}->${contract.X} with ratio ${yxRatio} on ${contract} (${toValue} -> ${backValue})`
+          // );
 
-          if (
-            bigIntMinAndMax(fromValue, toValue, backValue)[0] < VALUE_THRESHOLD
-          ) {
-            // console.log('skipping as some of values are too small');
-            return;
-          }
+          // if (
+          //   bigIntMinAndMax(fromValue, toValue, backValue)[0] < VALUE_THRESHOLD
+          // ) {
+          //   // console.log('skipping as some of values are too small');
+          //   return;
+          // }
 
           edges.push(
             {
@@ -153,7 +150,7 @@ export class Worker {
               ratio: yxRatio,
               distance: -Math.log(yxRatio),
               fromValue: toValue,
-              toValue: backValue,
+              toValue: fromValue,
               contract
             }
           );
@@ -284,9 +281,17 @@ export class Worker {
   }
 
   public async doAll(): Promise<void> {
-    const results: any[] = [];
+    const startBlock = await (await this.web3.eth.getBlock('latest')).number;
+
+    this.web3.defaultBlock = startBlock;
+    const results: SearchResult[] = [];
     const contracts = await this.loadAllContracts();
     console.log(`Got ${contracts.length} contracts`);
+    const config = {
+      usedTokens: TOKENS.map(({ id }) => id),
+      usedFactories: this.factories.map(({ name }) => name),
+      contracts: contracts.length
+    } satisfies Config;
     await Promise.all(
       [
         5n * 10n ** 16n,
@@ -306,6 +311,7 @@ export class Worker {
         console.log('Got graph', graph);
         for (const start of graph.getAllVertices()) {
           const distances = bellmanFord(graph, start);
+
           if (distances.hasNegativeCycle) {
             const {
               startToken,
@@ -319,10 +325,19 @@ export class Worker {
             } = await this.checkCycle(
               graph,
               distances.negativeCycle,
-              testAmount
+              this.normalizeValue(
+                testAmount,
+                distances.negativeCycle[0] as TokenId
+              )
             );
+
+            const endBlock = await (
+              await this.web3.eth.getBlock('latest')
+            ).number;
             results.push({
               capital: `${strategy[0].fromValue}`,
+              startBlock,
+              endBlock,
               status: 'FOUND',
               startToken,
               startValue,
@@ -348,31 +363,38 @@ export class Worker {
               ),
               profitPercent,
               realRate,
-              strategy
+              strategy,
+              config
             });
 
             return;
           }
         }
+        const endBlock = await (await this.web3.eth.getBlock('latest')).number;
         results.push({
+          startBlock,
+          endBlock,
           capital: `${TokenDecimal.fromAbsoluteValue(
             testAmount,
             DEFAULT_DECIMALS
           )}`,
-          status: 'NOT FOUND'
+          status: 'NOT FOUND',
+          config
         });
       })
     );
+
     results.sort((a, b) => {
-      const _a = a._profitInUSD || 0;
-      const _b = b._profitInUSD || 0;
+      const _a = (a.status === 'FOUND' && a._profitInUSD) || 0;
+      const _b = (b.status === 'FOUND' && b._profitInUSD) || 0;
       const t = _b - _a;
       return t;
     });
-    for (const { strategy, capital } of results) {
-      if (!strategy) {
-        continue;
+    for (const entry of results) {
+      if (entry.status === 'NOT FOUND') {
+        return;
       }
+      const { capital, strategy } = entry;
       console.log('strategy for', capital);
       const formattedStrategy = strategy.map((e: StrategyEntry) => ({
         fromValueAbsolute: e.fromValue.absoluteValue.toString(),
@@ -387,5 +409,9 @@ export class Worker {
     }
     console.log(`Total results (${new Date().toLocaleString()}): `);
     console.table(results);
+
+    console.log('Saving...');
+    await saveSearchResult(...results);
+    console.log('Saved.');
   }
 }

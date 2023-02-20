@@ -1,5 +1,11 @@
 export const DEFAULT_DECIMALS = 18n;
 
+// export interface TokenDecimal {
+//   readonly valueInDecimals: bigint;
+//   readonly decimals: bigint;
+//   readonly absoluteValue: bigint;
+// }
+
 export class TokenDecimal {
   readonly valueInDecimals: bigint;
 
