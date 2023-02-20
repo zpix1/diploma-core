@@ -1,5 +1,7 @@
-export const DEFAULT_WEB3_PROVIDER_URL =
-  'https://mainnet.infura.io/v3/87cc21b1979742ce8a4077ff951712a9';
+export const DEFAULT_WEB3_PROVIDER_URL = [
+  'https://mainnet.infura.io/v3/87cc21b1979742ce8a4077ff951712a9',
+  'https://eth-mainnet.g.alchemy.com/v2/cxqs_RjxJxjNLx4naXhS2OsRoGBxDv_Y'
+][0];
 
 export const TOKENS = [
   {

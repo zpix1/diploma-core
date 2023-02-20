@@ -35,6 +35,7 @@ interface StrategyEntry {
   to: string;
   fromValue: TokenDecimal;
   toValue: TokenDecimal;
+  usedEdge: ExchangeGraphEdge;
   exchange: DEX;
 }
 
@@ -47,24 +48,24 @@ export class Worker {
 
   public async loadAllContracts(): Promise<DEX[]> {
     const factories: DEXFactory[] = [
-      new UniswapV1Factory(
-        this.web3,
-        'Uniswap V1',
-        '0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95'
-      ),
+      // new UniswapV1Factory(
+      //   this.web3,
+      //   'Uniswap V1',
+      //   '0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95'
+      // ),
       new UniswapV2Factory(
         this.web3,
         'Uniswap V2',
         '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
         '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
       ),
-      new UniswapV3Factory(this.web3, 'Uniswap V3', QUOTER_CONTRACT_ADDRESS),
-      new CurveV1Factory(
-        this.web3,
-        'Curve V1',
-        '0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2',
-        '0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5'
-      )
+      new UniswapV3Factory(this.web3, 'Uniswap V3', QUOTER_CONTRACT_ADDRESS)
+      // new CurveV1Factory(
+      //   this.web3,
+      //   'Curve V1',
+      //   '0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2',
+      //   '0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5'
+      // )
     ];
 
     const contracts: DEX[] = [];
@@ -105,7 +106,9 @@ export class Worker {
     await Promise.all(
       contracts.map(async contract => {
         try {
-          const fromValue = testValue;
+          const fromValue =
+            testValue /
+            (BigInt((TOKENS_MAP.get(contract.X)?.inDollars ?? 1) * 100) / 100n);
           const { absoluteValue: toValue } = await contract.getSwapValue(
             fromValue,
             'XY'
@@ -239,7 +242,8 @@ export class Worker {
         fromValue: curResult,
         to: newCur,
         toValue: newCurResult,
-        exchange: edge.contract
+        exchange: edge.contract,
+        usedEdge: edge
       });
 
       cur = newCur;
@@ -379,7 +383,7 @@ export class Worker {
           exchange: v => v.toString()
         })
       }));
-      // console.table(formattedStrategy);
+      console.table(formattedStrategy);
     }
     console.log(`Total results (${new Date().toLocaleString()}): `);
     console.table(results);
