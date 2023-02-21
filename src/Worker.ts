@@ -27,8 +27,6 @@ import {
 } from './types';
 import { saveSearchResult } from './utils/dbClient';
 
-const VALUE_THRESHOLD = 10n ** 16n;
-
 export class Worker {
   readonly web3: Web3;
   readonly factories: DEXFactory[];

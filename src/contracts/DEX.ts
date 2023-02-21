@@ -12,6 +12,12 @@ export interface DEX {
     direction: 'XY' | 'YX'
   ): Promise<TokenDecimal>;
 
+  estimateGasForSwap(
+    fromValueAbsolute: bigint,
+    expectedToValueAbsolute: bigint,
+    direction: 'XY' | 'YX'
+  ): Promise<bigint>;
+
   setup(): Promise<void>;
 }
 
@@ -30,6 +36,12 @@ export abstract class BaseDEX implements DEX {
   abstract readonly address?: string;
   abstract readonly X: TokenId;
   abstract readonly Y: TokenId;
+
+  abstract estimateGasForSwap(
+    fromValueAbsolute: bigint,
+    expectedToValueAbsolute: bigint,
+    direction: 'XY' | 'YX'
+  ): Promise<bigint>;
 
   toString(): string {
     return `[${this.name} address=${this.address} X=${this.X} Y=${this.Y}]`;

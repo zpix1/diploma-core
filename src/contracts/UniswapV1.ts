@@ -73,13 +73,43 @@ export class UniswapV1Exchange extends BaseDEX implements DEX {
         amount,
         this.yDecimals
       ).valueInDecimals;
-      console.log(amount, this.yDecimals, inputValue);
       const value = BigInt(
         await this.contract.methods
           .getTokenToEthInputPrice(this.web3.utils.toBN(inputValue.toString()))
           .call()
       );
       return TokenDecimal.fromAbsoluteValue(value, DEFAULT_DECIMALS);
+    }
+  }
+
+  async estimateGasForSwap(
+    fromValueAbsolute: bigint,
+    expectedToValueAbsolute: bigint,
+    direction: 'XY' | 'YX'
+  ): Promise<bigint> {
+    const deadline = Math.floor(Date.now() / 1000) + 3600 * 20;
+    if (direction === 'XY') {
+      const tokenValue = TokenDecimal.fromAbsoluteValue(
+        expectedToValueAbsolute,
+        this.yDecimals
+      ).valueInDecimals;
+      return BigInt(
+        (await this.contract.methods
+          .ethToTokenSwapInput(tokenValue, deadline)
+          .estimateGas({
+            value: fromValueAbsolute
+          })) as number
+      );
+    } else {
+      const tokenValue = TokenDecimal.fromAbsoluteValue(
+        fromValueAbsolute,
+        this.yDecimals
+      ).valueInDecimals;
+      return BigInt(
+        (await this.contract.methods
+          .tokenToEthSwapInput(tokenValue, expectedToValueAbsolute, deadline)
+          .estimateGas()) as number
+      );
     }
   }
 

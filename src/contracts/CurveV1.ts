@@ -75,7 +75,7 @@ export class CurveV1Exchange extends BaseDEX implements DEX {
     super('Curve V1');
   }
 
-  private async swap(
+  private async estimateSwap(
     absoluteAmount: bigint,
     t1: ERC20,
     t2: ERC20
@@ -104,14 +104,65 @@ export class CurveV1Exchange extends BaseDEX implements DEX {
     return resultTokenDecimal;
   }
 
+  private async estimateGas(
+    fromValueAbsolute: bigint,
+    expectedToValueAbsolute: bigint,
+    t1: ERC20,
+    t2: ERC20
+  ): Promise<bigint> {
+    const fromValue = TokenDecimal.fromAbsoluteValue(
+      fromValueAbsolute,
+      await t1.getDecimals()
+    ).valueInDecimals;
+
+    const expectedToValue = TokenDecimal.fromAbsoluteValue(
+      expectedToValueAbsolute,
+      await t2.getDecimals()
+    ).valueInDecimals;
+
+    return BigInt(
+      (await this.registry.methods
+        .exchange(
+          this.address,
+          t1.address,
+          t2.address,
+          fromValue,
+          expectedToValue
+        )
+        .estimateGas()) as number
+    );
+  }
+
   async getSwapValue(
     absoluteAmount: bigint,
     direction: 'XY' | 'YX'
   ): Promise<TokenDecimal> {
     if (direction === 'XY') {
-      return await this.swap(absoluteAmount, this.token0, this.token1);
+      return await this.estimateSwap(absoluteAmount, this.token0, this.token1);
     } else {
-      return await this.swap(absoluteAmount, this.token1, this.token0);
+      return await this.estimateSwap(absoluteAmount, this.token1, this.token0);
+    }
+  }
+
+  async estimateGasForSwap(
+    fromValueAbsolute: bigint,
+    expectedToValueAbsolute: bigint,
+    direction: 'XY' | 'YX'
+  ): Promise<bigint> {
+    if (direction === 'XY') {
+      return await this.estimateGas(
+        fromValueAbsolute,
+        expectedToValueAbsolute,
+        this.token0,
+        this.token1
+      );
+    } else {
+      return await this.estimateGas(
+        expectedToValueAbsolute,
+        fromValueAbsolute,
+        this.token1,
+        this.token0
+      );
     }
   }
 
