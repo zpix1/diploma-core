@@ -2,7 +2,15 @@ export const DEFAULT_WEB3_PROVIDER_URL = [
   'https://mainnet.infura.io/v3/87cc21b1979742ce8a4077ff951712a9',
   'https://mainnet.infura.io/v3/cc39804d13634563a49d6201ba72f1e8',
   'https://eth-mainnet.g.alchemy.com/v2/cxqs_RjxJxjNLx4naXhS2OsRoGBxDv_Y'
-][1];
+][0];
+
+type TokenInfo = {
+  id: string;
+  description: string;
+  address: string;
+  isVirtual: boolean;
+  inDollars: number;
+};
 
 export const TOKENS = [
   {
@@ -81,8 +89,15 @@ export const TOKENS = [
     address: '0x2AF5D2aD76741191D15Dfe7bF6aC92d4Bd912Ca3',
     isVirtual: false,
     inDollars: 4.01325
+  },
+  {
+    id: 'MATIC',
+    description: 'Matic Token',
+    address: '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0',
+    inDollars: 1.3,
+    isVirtual: false
   }
-] as const;
+] as const satisfies readonly TokenInfo[];
 
 export type Token = typeof TOKENS[number];
 export type TokenId = Token['id'];

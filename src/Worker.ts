@@ -86,11 +86,11 @@ export class Worker {
 
   private normalizeValue(value: bigint, token: TokenId): bigint {
     return (
-      value /
-      (BigInt(
-        Math.round((TOKENS_MAP.get(token)?.inDollars ?? 1) * 100000000000)
-      ) /
-        100000000000n)
+      (value /
+        BigInt(
+          Math.round((TOKENS_MAP.get(token)?.inDollars ?? 1) * 100000000)
+        )) *
+      100000000n
     );
   }
 
@@ -320,6 +320,7 @@ export class Worker {
         const edges = await this.getAllRatios(contracts, testAmount);
         console.log(`Got ${edges.length} edges`);
         const graph = this.createGraph(edges);
+        console.log('got graph', graph);
         for (const start of graph.getAllVertices()) {
           const distances = bellmanFord(graph, start);
 
