@@ -2,14 +2,14 @@ import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
 
 import { DEXFactory } from './DEXFactory';
-import { BaseDEX, DEX } from './DEX';
+import { BaseDEX, BaseXYDEX, DEX } from './DEX';
 import { Token, TokenId } from '../config';
 
 import uniswapV2FactoryABI from '../abi/uniswap_v2_factory.json';
 import uniswapV2ExchangeABI from '../abi/uniswap_v2.json';
 import uniswapV2RouterABI from '../abi/uniswap_v2_router02.json';
 import { combinations } from '../utils/arrays';
-import { ERC20 } from './ERC20';
+import { ERC20, RealERC20 } from './ERC20';
 import { TokenDecimal } from '../utils/decimals';
 
 export class UniswapV2Factory implements DEXFactory {
@@ -55,7 +55,9 @@ export class UniswapV2Factory implements DEXFactory {
   }
 }
 
-export class UniswapV2Exchange extends BaseDEX implements DEX {
+export class UniswapV2Exchange extends BaseXYDEX implements DEX {
+  protected t0!: ERC20;
+  protected t1!: ERC20;
   private readonly contract: Contract;
 
   private reserveX!: TokenDecimal;
@@ -75,39 +77,53 @@ export class UniswapV2Exchange extends BaseDEX implements DEX {
     );
   }
 
-  private async swap(
-    absoluteAmount: bigint,
-    r1: TokenDecimal,
-    r2: TokenDecimal
-  ): Promise<TokenDecimal> {
-    const amountInDecimals = TokenDecimal.fromAbsoluteValue(
-      absoluteAmount,
-      r1.decimals
-    ).valueInDecimals;
-
-    const value = BigInt(
-      await this.router.methods
-        .getAmountOut(amountInDecimals, r1.valueInDecimals, r2.valueInDecimals)
-        .call()
-    );
-
-    const resultTokenDecimal = TokenDecimal.fromValueInDecimals(
-      value,
-      r2.decimals
-    );
-
-    return resultTokenDecimal;
-  }
-
-  async getSwapValue(
-    absoluteAmount: bigint,
+  protected async _estimateValueAfterSwap(
+    amountInDecimals: bigint,
+    _from: ERC20,
+    _to: ERC20,
     direction: 'XY' | 'YX'
-  ): Promise<TokenDecimal> {
+  ): Promise<bigint> {
     if (direction === 'XY') {
-      return await this.swap(absoluteAmount, this.reserveX, this.reserveY);
+      return BigInt(
+        await this.router.methods
+          .getAmountOut(
+            amountInDecimals,
+            this.reserveX.valueInDecimals,
+            this.reserveY.valueInDecimals
+          )
+          .call()
+      );
     } else {
-      return await this.swap(absoluteAmount, this.reserveY, this.reserveX);
+      return BigInt(
+        await this.router.methods
+          .getAmountOut(
+            amountInDecimals,
+            this.reserveY.valueInDecimals,
+            this.reserveX.valueInDecimals
+          )
+          .call()
+      );
     }
+  }
+  protected async _estimateGasForSwap(
+    fromAmountInDecimals: bigint,
+    toAmountInDecimals: bigint,
+    from: ERC20,
+    to: ERC20
+  ): Promise<bigint> {
+    const deadline = Math.floor(Date.now() / 1000) + 3600 * 20;
+
+    return BigInt(
+      await this.router.methods
+        .swapExactTokensForTokens(
+          fromAmountInDecimals,
+          toAmountInDecimals,
+          [from.address, to.address],
+          this.address,
+          deadline
+        )
+        .estimateGas()
+    );
   }
 
   async setup(): Promise<void> {
@@ -116,23 +132,24 @@ export class UniswapV2Exchange extends BaseDEX implements DEX {
       BigInt(x)
     );
 
-    const token0 = ERC20.getInstanceOf(
+    this.t0 = RealERC20.getInstanceOf(
       this.web3,
       await this.contract.methods.token0().call()
     );
 
-    const token1 = ERC20.getInstanceOf(
+    this.t1 = RealERC20.getInstanceOf(
       this.web3,
       await this.contract.methods.token1().call()
     );
 
     this.reserveX = TokenDecimal.fromValueInDecimals(
       reserve0,
-      await token0.getDecimals()
+      await this.t0.getDecimals()
     );
+
     this.reserveY = TokenDecimal.fromValueInDecimals(
       reserve1,
-      await token1.getDecimals()
+      await this.t1.getDecimals()
     );
   }
 }

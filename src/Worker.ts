@@ -6,26 +6,25 @@ import {
   TOKENS_MAP,
   TokenId
 } from './config';
+import { CurveV1Factory } from './contracts/CurveV1';
+import { DEX } from './contracts/DEX';
 import { DEXFactory } from './contracts/DEXFactory';
 import { UniswapV1Factory } from './contracts/UniswapV1';
-import { DEX } from './contracts/DEX';
 import { UniswapV2Factory } from './contracts/UniswapV2';
-import { DMGraph, GraphEdge, GraphVertex, bellmanFord } from './utils/graph';
-import { bigIntMinAndMax } from './utils/bigint';
-import { DEFAULT_DECIMALS, TokenDecimal } from './utils/decimals';
-import { objMap } from './utils/format';
 import {
   QUOTER_CONTRACT_ADDRESS,
   UniswapV3Factory
 } from './contracts/UniswapV3';
-import { CurveV1Factory } from './contracts/CurveV1';
 import {
+  Config,
   ExchangeGraphEdge,
-  StrategyEntry,
   SearchResult,
-  Config
+  StrategyEntry
 } from './types';
 import { saveSearchResult } from './utils/dbClient';
+import { DEFAULT_DECIMALS, TokenDecimal } from './utils/decimals';
+import { objMap } from './utils/format';
+import { DMGraph, GraphVertex, bellmanFord } from './utils/graph';
 
 export class Worker {
   readonly web3: Web3;
@@ -88,7 +87,10 @@ export class Worker {
   private normalizeValue(value: bigint, token: TokenId): bigint {
     return (
       value /
-      (BigInt((TOKENS_MAP.get(token)?.inDollars ?? 1) * 100000000) / 100000000n)
+      (BigInt(
+        Math.round((TOKENS_MAP.get(token)?.inDollars ?? 1) * 100000000000)
+      ) /
+        100000000000n)
     );
   }
 
@@ -104,14 +106,10 @@ export class Worker {
           const fromValueOrigin = this.normalizeValue(testValue, contract.X);
           const toValueOrigin = this.normalizeValue(testValue, contract.Y);
 
-          const { absoluteValue: toValue } = await contract.getSwapValue(
-            fromValueOrigin,
-            'XY'
-          );
-          const { absoluteValue: fromValue } = await contract.getSwapValue(
-            toValueOrigin,
-            'YX'
-          );
+          const { absoluteValue: toValue } =
+            await contract.estimateValueAfterSwap(fromValueOrigin, 'XY');
+          const { absoluteValue: fromValue } =
+            await contract.estimateValueAfterSwap(toValueOrigin, 'YX');
 
           const xyRatio = Number(toValue) / Number(fromValueOrigin);
           const yxRatio = Number(fromValue) / Number(toValueOrigin);
@@ -201,6 +199,7 @@ export class Worker {
     profit: number;
     profitPercent: string;
     strategy: StrategyEntry[];
+    totalGas: bigint;
   }> {
     let curResult: TokenDecimal = TokenDecimal.fromAbsoluteValue(
       testValue,
@@ -212,6 +211,7 @@ export class Worker {
     const strategy: StrategyEntry[] = [];
 
     let rate = 1;
+    let totalGas = 0n;
     for (let i = 1; i < cycle.length; i++) {
       const newCur = cycle[i];
       const edge = graph
@@ -221,12 +221,24 @@ export class Worker {
         throw new Error('Failed to find edge');
       }
 
-      const newCurResult = await edge.contract.getSwapValue(
+      const newCurResult = await edge.contract.estimateValueAfterSwap(
         curResult.absoluteValue,
         edge.direction
       );
 
+      const gas = 0n;
+      // try {
+      //   gas = await edge.contract.estimateGasForSwap(
+      //     curResult.absoluteValue,
+      //     newCurResult.absoluteValue,
+      //     edge.direction
+      //   );
+      // } catch (e) {
+      //   console.log(e);
+      // }
+
       rate *= edge.ratio;
+      totalGas += gas;
 
       // console.log(
       //   `${prev}->${cur} (${curValue} -> ${newCurValue} / ${realCurRate}) ${edge.contract}`
@@ -238,7 +250,8 @@ export class Worker {
         to: newCur,
         toValue: newCurResult,
         exchange: edge.contract,
-        usedEdge: edge
+        usedEdge: edge,
+        gas
       });
 
       cur = newCur;
@@ -274,6 +287,7 @@ export class Worker {
         style: 'percent',
         minimumFractionDigits: 2
       }).format(profitPercentNumber),
+      totalGas,
       strategy
     };
   }
@@ -288,7 +302,7 @@ export class Worker {
     const config = {
       usedTokens: TOKENS.map(({ id }) => id),
       usedFactories: this.factories.map(({ name }) => name),
-      contracts: contracts.length
+      contractsCount: contracts.length
     } satisfies Config;
     await Promise.all(
       [
@@ -306,7 +320,6 @@ export class Worker {
         const edges = await this.getAllRatios(contracts, testAmount);
         console.log(`Got ${edges.length} edges`);
         const graph = this.createGraph(edges);
-        console.log('Got graph', graph);
         for (const start of graph.getAllVertices()) {
           const distances = bellmanFord(graph, start);
 
@@ -319,7 +332,8 @@ export class Worker {
               profit,
               realRate,
               strategy,
-              profitPercent
+              profitPercent,
+              totalGas
             } = await this.checkCycle(
               graph,
               distances.negativeCycle,
@@ -362,7 +376,8 @@ export class Worker {
               profitPercent,
               realRate,
               strategy,
-              config
+              config,
+              totalGas
             });
 
             return;
@@ -390,7 +405,7 @@ export class Worker {
     });
     for (const entry of results) {
       if (entry.status === 'NOT FOUND') {
-        return;
+        continue;
       }
       const { capital, strategy } = entry;
       console.log('strategy for', capital);

@@ -19,11 +19,12 @@ export type StrategyEntry = {
   toValue: TokenDecimal;
   usedEdge: ExchangeGraphEdge;
   exchange: DEX;
+  gas: bigint;
 };
 
 export type Config = {
   usedTokens: string[];
-  contracts: number;
+  contractsCount: number;
   usedFactories: string[];
 };
 
@@ -49,5 +50,6 @@ export type SearchResult = {
       profitPercent: FormattedPercent;
       realRate: number;
       strategy: StrategyEntry[];
+      totalGas: bigint;
     }
 );

@@ -123,7 +123,7 @@ export class UniswapV3Exchange extends BaseDEX implements DEX {
     return resultTokenDecimal;
   }
 
-  async getSwapValue(
+  async estimateValueAfterSwap(
     absoluteAmount: bigint,
     direction: 'XY' | 'YX'
   ): Promise<TokenDecimal> {

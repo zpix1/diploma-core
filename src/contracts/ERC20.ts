@@ -3,8 +3,16 @@ import { Contract } from 'web3-eth-contract';
 
 import erc20abi from '../abi/erc20.json';
 import { Memoize } from 'typescript-memoize';
+import { DEFAULT_DECIMALS } from '../utils/decimals';
 
-export class ERC20 {
+export interface ERC20 {
+  readonly address: string;
+  getDecimals(): Promise<bigint>;
+  balanceOf(address: string): Promise<bigint>;
+  symbol(): Promise<string>;
+}
+
+export class RealERC20 implements ERC20 {
   private readonly contract: Contract;
 
   private constructor(web3: Web3, readonly address: string) {
@@ -12,13 +20,12 @@ export class ERC20 {
   }
 
   @Memoize((_web3: Web3, address: string) => address)
-  static getInstanceOf(web3: Web3, address: string): ERC20 {
-    return new ERC20(web3, address);
+  static getInstanceOf(web3: Web3, address: string): RealERC20 {
+    return new RealERC20(web3, address);
   }
 
   @Memoize()
   async getDecimals(): Promise<bigint> {
-    console.log('get decimals for', this.address);
     return BigInt(await this.contract.methods.decimals().call());
   }
 
@@ -30,5 +37,31 @@ export class ERC20 {
   @Memoize()
   async symbol(): Promise<string> {
     return await this.contract.methods.symbol().call();
+  }
+}
+
+export class EthERC20 implements ERC20 {
+  private constructor() {
+    return;
+  }
+
+  static getInstanceOf(): EthERC20 {
+    return new EthERC20();
+  }
+
+  get address(): string {
+    throw new Error('Method not implemented.');
+  }
+
+  async getDecimals(): Promise<bigint> {
+    return DEFAULT_DECIMALS;
+  }
+
+  balanceOf(): Promise<bigint> {
+    throw new Error('Method not implemented.');
+  }
+
+  async symbol(): Promise<string> {
+    return 'ETH';
   }
 }

@@ -1,14 +1,13 @@
 import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
 
-import { DEXFactory } from './DEXFactory';
-import { BaseDEX, DEX } from './DEX';
 import { Token, TokenId } from '../config';
+import { BaseXYDEX, DEX } from './DEX';
+import { DEXFactory } from './DEXFactory';
 
-import uniswapV1FactoryABI from '../abi/uniswap_v1_factory.json';
 import uniswapV1ExchangeABI from '../abi/uniswap_v1.json';
-import { ERC20 } from './ERC20';
-import { DEFAULT_DECIMALS, TokenDecimal } from '../utils/decimals';
+import uniswapV1FactoryABI from '../abi/uniswap_v1_factory.json';
+import { ERC20, EthERC20, RealERC20 } from './ERC20';
 
 export class UniswapV1Factory implements DEXFactory {
   constructor(
@@ -40,10 +39,11 @@ export class UniswapV1Factory implements DEXFactory {
   }
 }
 
-export class UniswapV1Exchange extends BaseDEX implements DEX {
+export class UniswapV1Exchange extends BaseXYDEX implements DEX {
+  protected t0!: ERC20;
+  protected t1!: ERC20;
   readonly X = 'ETH';
   private readonly contract: Contract;
-  private yDecimals!: bigint;
 
   constructor(
     private readonly web3: Web3,
@@ -57,67 +57,55 @@ export class UniswapV1Exchange extends BaseDEX implements DEX {
     );
   }
 
-  async getSwapValue(
-    amount: bigint,
-    direction: 'XY' | 'YX'
-  ): Promise<TokenDecimal> {
-    if (direction === 'XY') {
-      const value = BigInt(
+  protected async _estimateValueAfterSwap(
+    amountInDecimals: bigint,
+    from: ERC20
+  ): Promise<bigint> {
+    if ((await from.symbol()) === 'ETH') {
+      return BigInt(
         await this.contract.methods
-          .getEthToTokenInputPrice(this.web3.utils.toBN(amount.toString()))
+          .getEthToTokenInputPrice(amountInDecimals)
           .call()
       );
-      return TokenDecimal.fromValueInDecimals(value, this.yDecimals);
     } else {
-      const inputValue = TokenDecimal.fromAbsoluteValue(
-        amount,
-        this.yDecimals
-      ).valueInDecimals;
-      const value = BigInt(
+      return BigInt(
         await this.contract.methods
-          .getTokenToEthInputPrice(this.web3.utils.toBN(inputValue.toString()))
+          .getTokenToEthInputPrice(amountInDecimals)
           .call()
       );
-      return TokenDecimal.fromAbsoluteValue(value, DEFAULT_DECIMALS);
     }
   }
-
-  async estimateGasForSwap(
-    fromValueAbsolute: bigint,
-    expectedToValueAbsolute: bigint,
-    direction: 'XY' | 'YX'
+  protected async _estimateGasForSwap(
+    fromAmountInDecimals: bigint,
+    toAmountInDecimals: bigint,
+    from: ERC20
   ): Promise<bigint> {
     const deadline = Math.floor(Date.now() / 1000) + 3600 * 20;
-    if (direction === 'XY') {
-      const tokenValue = TokenDecimal.fromAbsoluteValue(
-        expectedToValueAbsolute,
-        this.yDecimals
-      ).valueInDecimals;
+
+    if ((await from.symbol()) === 'ETH') {
       return BigInt(
         (await this.contract.methods
-          .ethToTokenSwapInput(tokenValue, deadline)
+          .ethToTokenSwapInput(toAmountInDecimals, deadline)
           .estimateGas({
-            value: fromValueAbsolute
+            value: fromAmountInDecimals
           })) as number
       );
     } else {
-      const tokenValue = TokenDecimal.fromAbsoluteValue(
-        fromValueAbsolute,
-        this.yDecimals
-      ).valueInDecimals;
       return BigInt(
         (await this.contract.methods
-          .tokenToEthSwapInput(tokenValue, expectedToValueAbsolute, deadline)
+          .tokenToEthSwapInput(
+            fromAmountInDecimals,
+            toAmountInDecimals,
+            deadline
+          )
           .estimateGas()) as number
       );
     }
   }
 
   async setup(): Promise<void> {
+    this.t0 = EthERC20.getInstanceOf();
     const tokenAddress = await this.contract.methods.tokenAddress().call();
-    this.yDecimals = await ERC20.getInstanceOf(
-      this.web3,
-      tokenAddress
-    ).getDecimals();
+    this.t1 = RealERC20.getInstanceOf(this.web3, tokenAddress);
   }
 }
