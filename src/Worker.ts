@@ -29,6 +29,7 @@ import { DMGraph, GraphVertex, bellmanFord } from './utils/graph';
 export class Worker {
   readonly web3: Web3;
   readonly factories: DEXFactory[];
+  private contracts?: DEX[];
 
   public constructor() {
     this.web3 = new Web3(Web3.givenProvider || DEFAULT_WEB3_PROVIDER_URL);
@@ -54,7 +55,7 @@ export class Worker {
     ];
   }
 
-  public async loadAllContracts(): Promise<DEX[]> {
+  private async getAllContracts(): Promise<DEX[]> {
     const contracts: DEX[] = [];
 
     for (const factory of this.factories) {
@@ -94,7 +95,7 @@ export class Worker {
     );
   }
 
-  public async getAllRatios(
+  private async getAllRatios(
     contracts: DEX[],
     testValue: bigint
   ): Promise<ExchangeGraphEdge[]> {
@@ -159,7 +160,7 @@ export class Worker {
     return edges;
   }
 
-  public createGraph(edges: ExchangeGraphEdge[]): DMGraph<ExchangeGraphEdge> {
+  private createGraph(edges: ExchangeGraphEdge[]): DMGraph<ExchangeGraphEdge> {
     const graph = new DMGraph<ExchangeGraphEdge>();
     edges.forEach(edge => graph.addEdge(edge));
     return graph;
@@ -186,7 +187,7 @@ export class Worker {
     console.log(bellmanFord(G, 'A'));
   }
 
-  public async checkCycle(
+  private async checkCycle(
     graph: DMGraph<ExchangeGraphEdge>,
     cycle: GraphVertex[],
     testValue: bigint
@@ -291,14 +292,22 @@ export class Worker {
       strategy
     };
   }
-
-  public async doAll(): Promise<void> {
+  public async doAll(props?: {
+    reloadContracts?: boolean;
+    saveResults?: boolean;
+  }): Promise<void> {
     const startBlock = await (await this.web3.eth.getBlock('latest')).number;
 
-    this.web3.defaultBlock = startBlock;
+    this.web3.defaultBlock = '16710636';
     const results: SearchResult[] = [];
-    const contracts = await this.loadAllContracts();
-    console.log(`Got ${contracts.length} contracts`);
+    if (props?.reloadContracts || this.contracts === undefined) {
+      this.contracts = await this.getAllContracts();
+      console.log(`Got ${this.contracts.length} contracts`);
+    }
+    const contracts = this.contracts;
+    if (!contracts) {
+      throw new Error('contracts are undefined');
+    }
     const config = {
       usedTokens: TOKENS.map(({ id }) => id),
       usedFactories: this.factories.map(({ name }) => name),
@@ -424,8 +433,10 @@ export class Worker {
     console.log(`Total results (${new Date().toLocaleString()}): `);
     console.table(results);
 
-    console.log('Saving...');
-    await saveSearchResult(...results);
-    console.log('Saved.');
+    if (props?.saveResults ?? true) {
+      console.log('Saving...');
+      await saveSearchResult(...results);
+      console.log('Saved.');
+    }
   }
 }
