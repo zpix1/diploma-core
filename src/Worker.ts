@@ -298,7 +298,8 @@ export class Worker {
   }): Promise<void> {
     const startBlock = await (await this.web3.eth.getBlock('latest')).number;
 
-    this.web3.defaultBlock = '16710636';
+    // this.web3.defaultBlock = '16710636';
+    this.web3.eth.defaultBlock = startBlock;
     const results: SearchResult[] = [];
     if (props?.reloadContracts || this.contracts === undefined) {
       this.contracts = await this.getAllContracts();

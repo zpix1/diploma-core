@@ -29,7 +29,6 @@ export class RealERC20 implements ERC20 {
     return BigInt(await this.contract.methods.decimals().call());
   }
 
-  @Memoize()
   async balanceOf(address: string): Promise<bigint> {
     return BigInt(await this.contract.methods.balanceOf(address).call());
   }
