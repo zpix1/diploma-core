@@ -21,10 +21,22 @@ import {
   SearchResult,
   StrategyEntry
 } from './types';
-import { saveSearchResult } from './utils/dbClient';
 import { DEFAULT_DECIMALS, TokenDecimal } from './utils/decimals';
 import { objMap } from './utils/format';
 import { DMGraph, GraphVertex, bellmanFord } from './utils/graph';
+
+const DEFAULT_CAPS_SET = [
+  5n * 10n ** 16n,
+  10n ** 17n,
+  5n * 10n ** 17n,
+  10n ** 18n,
+  5n * 10n ** 18n,
+  10n ** 19n,
+  5n * 10n ** 19n,
+  10n ** 20n,
+  10n ** 21n,
+  10n ** 22n
+] as const;
 
 export class Worker {
   readonly web3: Web3;
@@ -292,14 +304,18 @@ export class Worker {
       strategy
     };
   }
-  public async doAll(props?: {
-    reloadContracts?: boolean;
-    saveResults?: boolean;
-  }): Promise<void> {
-    const startBlock = await (await this.web3.eth.getBlock('latest')).number;
 
-    // this.web3.defaultBlock = '16710636';
-    this.web3.eth.defaultBlock = startBlock;
+  public async doSearch(props: {
+    reloadContracts?: boolean;
+    blockNumber?: number | 'latest';
+    capsSet?: bigint[];
+    usedTokens?: TokenId[];
+    usedFactories?: string[];
+  }): Promise<SearchResult[]> {
+    const startBlock = await (await this.web3.eth.getBlock('latest')).number;
+    const capsSet = props.capsSet ?? DEFAULT_CAPS_SET;
+
+    this.web3.eth.defaultBlock = props.blockNumber ?? startBlock;
     const results: SearchResult[] = [];
     if (props?.reloadContracts || this.contracts === undefined) {
       this.contracts = await this.getAllContracts();
@@ -315,18 +331,7 @@ export class Worker {
       contractsCount: contracts.length
     } satisfies Config;
     await Promise.all(
-      [
-        5n * 10n ** 16n,
-        10n ** 17n,
-        5n * 10n ** 17n,
-        10n ** 18n,
-        5n * 10n ** 18n,
-        10n ** 19n,
-        5n * 10n ** 19n,
-        10n ** 20n,
-        10n ** 21n,
-        10n ** 22n
-      ].map(async testAmount => {
+      capsSet.map(async testAmount => {
         const edges = await this.getAllRatios(contracts, testAmount);
         console.log(`Got ${edges.length} edges`);
         const graph = this.createGraph(edges);
@@ -433,11 +438,6 @@ export class Worker {
     }
     console.log(`Total results (${new Date().toLocaleString()}): `);
     console.table(results);
-
-    if (props?.saveResults ?? true) {
-      console.log('Saving...');
-      await saveSearchResult(...results);
-      console.log('Saved.');
-    }
+    return results;
   }
 }

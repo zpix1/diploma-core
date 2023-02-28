@@ -98,3 +98,4 @@ export const TOKENS = [
 export type Token = typeof TOKENS[number];
 export type TokenId = Token['id'];
 export const TOKENS_MAP = new Map(TOKENS.map(t => [t.id, t]));
+export const TOKEN_ID_LIST = TOKENS.map(({ id }) => id);

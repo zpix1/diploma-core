@@ -5,6 +5,7 @@ import { GraphEdge } from './utils/graph';
 export type FormattedCapitalUSD = string;
 export type FormattedCapital = string;
 export type FormattedPercent = string;
+
 export interface ExchangeGraphEdge extends GraphEdge {
   contract: DEX;
   fromValue: bigint;
@@ -12,6 +13,7 @@ export interface ExchangeGraphEdge extends GraphEdge {
   ratio: number;
   direction: 'XY' | 'YX';
 }
+
 export type StrategyEntry = {
   from: string;
   to: string;
