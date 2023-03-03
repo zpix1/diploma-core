@@ -57,3 +57,7 @@ export class TokenDecimal {
     );
   }
 }
+
+export const normalizeValue = (value: bigint, inDollars: number): bigint => {
+  return (value / BigInt(Math.round(inDollars * 100000000))) * 100000000n;
+};

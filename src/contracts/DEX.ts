@@ -1,5 +1,5 @@
-import { TokenId } from '../config';
-import { TokenDecimal } from '../utils/decimals';
+import { TOKENS_MAP, TokenId } from '../config';
+import { TokenDecimal, normalizeValue } from '../utils/decimals';
 import { ERC20 } from './ERC20';
 
 export interface DEX {
@@ -106,6 +106,20 @@ export abstract class BaseXYDEX extends BaseDEX {
         this.t0,
         direction
       );
+    }
+  }
+
+  protected async checkBalance(token: ERC20, address: string): Promise<void> {
+    const tokenInDollars = TOKENS_MAP.get(
+      (await token.symbol()) as TokenId
+    )?.inDollars;
+    if (tokenInDollars === undefined) {
+      throw new Error(`invalid token ${await token.symbol()}`);
+    }
+    const valueInDecimals = await this.t1.balanceOf(address);
+    const valueInDollars = normalizeValue(valueInDecimals, tokenInDollars);
+    if (valueInDollars < 10n ** (await this.t1.getDecimals()) * 1n) {
+      throw new Error(`balance too low ${await token.symbol()}: ${address}`);
     }
   }
 

@@ -157,5 +157,10 @@ export class UniswapV3Exchange extends BaseXYDEX implements DEX {
     this.t0 = token0Pre;
     this.t1 = token1Pre;
     this.address = currentPoolAddress;
+
+    await Promise.all([
+      this.checkBalance(this.t0, this.address),
+      this.checkBalance(this.t1, this.address)
+    ]);
   }
 }

@@ -107,5 +107,6 @@ export class UniswapV1Exchange extends BaseXYDEX implements DEX {
     this.t0 = EthERC20.getInstanceOf();
     const tokenAddress = await this.contract.methods.tokenAddress().call();
     this.t1 = RealERC20.getInstanceOf(this.web3, tokenAddress);
+    this.checkBalance(this.t1, this.address);
   }
 }

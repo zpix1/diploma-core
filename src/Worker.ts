@@ -21,7 +21,11 @@ import {
   SearchResult,
   StrategyEntry
 } from './types';
-import { DEFAULT_DECIMALS, TokenDecimal } from './utils/decimals';
+import {
+  DEFAULT_DECIMALS,
+  TokenDecimal,
+  normalizeValue
+} from './utils/decimals';
 import { objMap } from './utils/format';
 import { DMGraph, GraphVertex, bellmanFord } from './utils/graph';
 
@@ -80,12 +84,12 @@ export class Worker {
               await contract.setup();
               return contract;
             } catch (e) {
-              console.error(`got error while setup of contract ${contract}`, e);
+              // console.error(`got error while setup of contract ${contract}`, e);
               return undefined;
             }
           })
         )
-      ).filter(x => Boolean(x)) as DEX[];
+      ).filter(Boolean) as DEX[];
 
       console.log(
         `Got ${setupContracts.length} contracts from ${factory.name} factory`
@@ -98,13 +102,7 @@ export class Worker {
   }
 
   private normalizeValue(value: bigint, token: TokenId): bigint {
-    return (
-      (value /
-        BigInt(
-          Math.round((TOKENS_MAP.get(token)?.inDollars ?? 1) * 100000000)
-        )) *
-      100000000n
-    );
+    return normalizeValue(value, TOKENS_MAP.get(token)?.inDollars ?? 1);
   }
 
   private async getAllRatios(
