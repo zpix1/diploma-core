@@ -12,7 +12,7 @@ export const TOKENS = [
   {
     id: 'ETH',
     description: 'Just ether',
-    address: '',
+    address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
     isVirtual: true,
     inDollars: 1300
   },

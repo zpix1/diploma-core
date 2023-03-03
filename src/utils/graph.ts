@@ -48,6 +48,19 @@ export class DMGraph<Edge extends GraphEdge> {
     }
     return vConnections;
   }
+
+  toString(): string {
+    return `<DMGraph\n
+      ${Array.from(this.connections.entries())
+        .map(
+          ([k, v]) =>
+            `\t${k} => ${v
+              .map(e => e.toString())
+              .sort()
+              .join('\n\t\t')}`
+        )
+        .join('\n')}\n/>`;
+  }
 }
 
 export const bellmanFord = <Edge extends GraphEdge>(

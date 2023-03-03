@@ -10,6 +10,7 @@ import { BaseDEX, BaseXYDEX, DEX } from './DEX';
 import { DEXFactory } from './DEXFactory';
 import { ERC20, RealERC20 } from './ERC20';
 import { SupportedChainId, Token as UniswapToken } from '@uniswap/sdk-core';
+import { areAddressesEqual } from '../utils/address';
 
 export class UniswapV3Factory implements DEXFactory {
   constructor(
@@ -146,12 +147,12 @@ export class UniswapV3Exchange extends BaseXYDEX implements DEX {
       throw new Error(`invalid token fee: ${fee} != ${this.fee}`);
     }
 
-    if (token0Adr !== token0Pre.address) {
-      throw new Error('invalid token');
+    if (!areAddressesEqual(token0Adr, token0Pre.address)) {
+      throw new Error(`invalid token ${token0Adr} ${token0Pre.address}`);
     }
 
-    if (token1Adr !== token1Pre.address) {
-      throw new Error('invalid token');
+    if (!areAddressesEqual(token1Adr, token1Pre.address)) {
+      throw new Error(`invalid token ${token1Adr} ${token1Pre.address}`);
     }
 
     this.t0 = token0Pre;

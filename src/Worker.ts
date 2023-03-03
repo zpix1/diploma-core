@@ -65,7 +65,7 @@ export class Worker {
       new CurveV1Factory(
         this.web3,
         'Curve V1',
-        '0xD1602F68CC7C4c7B59D686243EA35a9C73B0c6a2',
+        '0x99a58482BD75cbab83b27EC03CA68fF489b5788f',
         '0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5'
       )
     ];
@@ -148,7 +148,8 @@ export class Worker {
               distance: -Math.log(xyRatio),
               fromValue,
               toValue,
-              contract
+              contract,
+              toString: () => contract.toString()
             },
             {
               direction: 'YX',
@@ -158,7 +159,8 @@ export class Worker {
               distance: -Math.log(yxRatio),
               fromValue: toValue,
               toValue: fromValue,
-              contract
+              contract,
+              toString: () => contract.toString()
             }
           );
         } catch (e) {
@@ -333,7 +335,7 @@ export class Worker {
         const edges = await this.getAllRatios(contracts, testAmount);
         console.log(`Got ${edges.length} edges`);
         const graph = this.createGraph(edges);
-        console.log('got graph', graph);
+        console.log('got graph', graph.toString());
         for (const start of graph.getAllVertices()) {
           const distances = bellmanFord(graph, start);
 

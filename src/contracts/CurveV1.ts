@@ -29,34 +29,37 @@ export class CurveV1Factory implements DEXFactory {
       this.poolRegistryAddress
     );
 
-    return (
-      await Promise.all(
-        Array.from(
-          combinations(
-            tokens.filter(({ isVirtual }) => !isVirtual),
-            2
-          )
-        ).map(async pair => {
+    const result: DEX[] = [];
+
+    await Promise.all(
+      Array.from(combinations(tokens, 2)).map(async pair => {
+        for (let i = 0; i < 2; i++) {
           const [x, y] = pair.sort((p1, p2) => {
             const a = BigInt(p1.address);
             const b = BigInt(p2.address);
             return a < b ? -1 : a > b ? 1 : 0;
           });
           const poolAddress = await poolRegistry.methods
-            .find_pool_for_coins(x.address, y.address)
+            .find_pool_for_coins(x.address, y.address, i)
             .call();
-          return new CurveV1Exchange(
-            this.web3,
-            x.id,
-            y.id,
-            x,
-            y,
-            exchangeRegistry,
-            poolAddress
+          result.push(
+            new CurveV1Exchange(
+              this.web3,
+              x.id,
+              y.id,
+              x,
+              y,
+              exchangeRegistry,
+              poolAddress
+            )
           );
-        })
-      )
-    ).filter(({ address }) => !this.web3.utils.toBN(address).isZero());
+        }
+      })
+    );
+
+    return result.filter(
+      ({ address }) => address && !this.web3.utils.toBN(address).isZero()
+    );
   }
 }
 
