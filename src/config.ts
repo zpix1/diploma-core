@@ -8,14 +8,16 @@ type TokenInfo = {
   inDollars: number;
 };
 
+export const ETH = {
+  id: 'ETH',
+  description: 'Just ether',
+  address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  isVirtual: true,
+  inDollars: 1300
+} satisfies TokenInfo;
+
 export const TOKENS = [
-  {
-    id: 'ETH',
-    description: 'Just ether',
-    address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-    isVirtual: true,
-    inDollars: 1300
-  },
+  ETH,
   {
     id: 'USDT',
     description: 'Tether USD',
@@ -91,6 +93,13 @@ export const TOKENS = [
     description: 'Matic Token',
     address: '0x7d1afa7b718fb893db30a3abc0cfc608aacfebb0',
     inDollars: 1.3,
+    isVirtual: false
+  },
+  {
+    id: 'WBTC',
+    description: 'Wrapped BTC',
+    address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+    inDollars: 22300,
     isVirtual: false
   }
 ] as const satisfies readonly TokenInfo[];

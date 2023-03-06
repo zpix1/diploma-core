@@ -1,16 +1,15 @@
+import { SupportedChainId, Token as UniswapToken } from '@uniswap/sdk-core';
 import IUniswapV3PoolABI from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json';
 import Quoter from '@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json';
 import { FeeAmount, computePoolAddress } from '@uniswap/v3-sdk';
 import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
 import { Token, TokenId } from '../config';
-import { combinations } from '../utils/arrays';
-import { TokenDecimal } from '../utils/decimals';
-import { BaseDEX, BaseXYDEX, DEX } from './DEX';
-import { DEXFactory } from './DEXFactory';
-import { ERC20, RealERC20 } from './ERC20';
-import { SupportedChainId, Token as UniswapToken } from '@uniswap/sdk-core';
 import { areAddressesEqual } from '../utils/address';
+import { combinations } from '../utils/arrays';
+import { BaseXYDEX, DEX } from './DEX';
+import { DEXFactory } from './DEXFactory';
+import { ERC20, getERC20 } from './ERC20';
 
 export class UniswapV3Factory implements DEXFactory {
   constructor(
@@ -114,8 +113,8 @@ export class UniswapV3Exchange extends BaseXYDEX implements DEX {
   }
 
   async setup(): Promise<void> {
-    const token0Pre = RealERC20.getInstanceOf(this.web3, this.XAdr);
-    const token1Pre = RealERC20.getInstanceOf(this.web3, this.YAdr);
+    const token0Pre = getERC20(this.web3, this.XAdr);
+    const token1Pre = getERC20(this.web3, this.YAdr);
 
     const currentPoolAddress = computePoolAddress({
       factoryAddress: POOL_FACTORY_CONTRACT_ADDRESS,

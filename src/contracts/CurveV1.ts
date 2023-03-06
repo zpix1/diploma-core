@@ -6,10 +6,22 @@ import { BaseXYDEX, DEX } from './DEX';
 import { DEXFactory } from './DEXFactory';
 
 import { combinations } from '../utils/arrays';
-import { ERC20, RealERC20 } from './ERC20';
+import { ERC20, RealERC20, getERC20 } from './ERC20';
 
 import curveV1AddressRegistryABI from '../abi/curve_v1_address_registry.json';
 import curveV1ExchangeRegistryABI from '../abi/curve_v1_registry.json';
+
+interface PrecreatedPool {
+  tokens: TokenId[];
+  address: string;
+}
+
+const precreatedPools: PrecreatedPool[] = [
+  {
+    tokens: ['WBTC', 'USDT', 'ETH'],
+    address: '0xd51a44d3fae010294c616388b506acda1bfaae46'
+  }
+];
 
 export class CurveV1Factory implements DEXFactory {
   constructor(
@@ -33,12 +45,32 @@ export class CurveV1Factory implements DEXFactory {
 
     await Promise.all(
       Array.from(combinations(tokens, 2)).map(async pair => {
+        const [x, y] = pair.sort((p1, p2) => {
+          const a = BigInt(p1.address);
+          const b = BigInt(p2.address);
+          return a < b ? -1 : a > b ? 1 : 0;
+        });
+
+        for (const precreatedPool of precreatedPools) {
+          if (
+            precreatedPool.tokens.includes(x.id) &&
+            precreatedPool.tokens.includes(y.id)
+          ) {
+            result.push(
+              new CurveV1Exchange(
+                this.web3,
+                x.id,
+                y.id,
+                x,
+                y,
+                exchangeRegistry,
+                precreatedPool.address
+              )
+            );
+          }
+        }
+
         for (let i = 0; i < 2; i++) {
-          const [x, y] = pair.sort((p1, p2) => {
-            const a = BigInt(p1.address);
-            const b = BigInt(p2.address);
-            return a < b ? -1 : a > b ? 1 : 0;
-          });
           const poolAddress = await poolRegistry.methods
             .find_pool_for_coins(x.address, y.address, i)
             .call();
@@ -84,6 +116,15 @@ export class CurveV1Exchange extends BaseXYDEX implements DEX {
     from: ERC20,
     to: ERC20
   ): Promise<bigint> {
+    console.log(
+      'curve',
+      this.address,
+      from.address,
+      to.address,
+      await from.symbol(),
+      await to.symbol(),
+      amountInDecimals
+    );
     return BigInt(
       await this.registry.methods
         .get_exchange_amount(
@@ -116,7 +157,7 @@ export class CurveV1Exchange extends BaseXYDEX implements DEX {
   }
 
   async setup(): Promise<void> {
-    this.t0 = RealERC20.getInstanceOf(this.web3, this.XTokenData.address);
-    this.t1 = RealERC20.getInstanceOf(this.web3, this.YTokenData.address);
+    this.t0 = getERC20(this.web3, this.XTokenData.address);
+    this.t1 = getERC20(this.web3, this.YTokenData.address);
   }
 }

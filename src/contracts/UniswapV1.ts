@@ -1,13 +1,13 @@
 import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
 
-import { Token, TokenId } from '../config';
+import { ETH, Token, TokenId } from '../config';
 import { BaseXYDEX, DEX } from './DEX';
 import { DEXFactory } from './DEXFactory';
 
 import uniswapV1ExchangeABI from '../abi/uniswap_v1.json';
 import uniswapV1FactoryABI from '../abi/uniswap_v1_factory.json';
-import { ERC20, EthERC20, RealERC20 } from './ERC20';
+import { ERC20, EthERC20, getERC20 } from './ERC20';
 
 export class UniswapV1Factory implements DEXFactory {
   constructor(
@@ -104,9 +104,9 @@ export class UniswapV1Exchange extends BaseXYDEX implements DEX {
   }
 
   async setup(): Promise<void> {
-    this.t0 = EthERC20.getInstanceOf();
+    this.t0 = getERC20(this.web3, ETH.address);
     const tokenAddress = await this.contract.methods.tokenAddress().call();
-    this.t1 = RealERC20.getInstanceOf(this.web3, tokenAddress);
+    this.t1 = getERC20(this.web3, tokenAddress);
     await this.checkBalance(this.t1, this.address);
   }
 }

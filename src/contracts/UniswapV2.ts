@@ -1,16 +1,16 @@
 import Web3 from 'web3';
 import { Contract } from 'web3-eth-contract';
 
-import { DEXFactory } from './DEXFactory';
-import { BaseDEX, BaseXYDEX, DEX } from './DEX';
 import { Token, TokenId } from '../config';
+import { BaseXYDEX, DEX } from './DEX';
+import { DEXFactory } from './DEXFactory';
 
-import uniswapV2FactoryABI from '../abi/uniswap_v2_factory.json';
 import uniswapV2ExchangeABI from '../abi/uniswap_v2.json';
+import uniswapV2FactoryABI from '../abi/uniswap_v2_factory.json';
 import uniswapV2RouterABI from '../abi/uniswap_v2_router02.json';
 import { combinations } from '../utils/arrays';
-import { ERC20, RealERC20 } from './ERC20';
 import { TokenDecimal } from '../utils/decimals';
+import { ERC20, getERC20 } from './ERC20';
 
 export class UniswapV2Factory implements DEXFactory {
   constructor(
@@ -132,15 +132,9 @@ export class UniswapV2Exchange extends BaseXYDEX implements DEX {
       BigInt(x)
     );
 
-    this.t0 = RealERC20.getInstanceOf(
-      this.web3,
-      await this.contract.methods.token0().call()
-    );
+    this.t0 = getERC20(this.web3, await this.contract.methods.token0().call());
 
-    this.t1 = RealERC20.getInstanceOf(
-      this.web3,
-      await this.contract.methods.token1().call()
-    );
+    this.t1 = getERC20(this.web3, await this.contract.methods.token1().call());
 
     this.reserveX = TokenDecimal.fromValueInDecimals(
       reserve0,

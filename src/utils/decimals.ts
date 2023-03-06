@@ -58,6 +58,19 @@ export class TokenDecimal {
   }
 }
 
+const MIN_DECIMALS = 8n;
+
+const trimValue = (value: bigint): bigint => {
+  const n = 10n ** (DEFAULT_DECIMALS - MIN_DECIMALS);
+  const trimmedValue = value - (value % n);
+  if (value !== trimmedValue) {
+    console.log('value trimmed', value, trimmedValue);
+  }
+  return trimmedValue;
+};
+
 export const normalizeValue = (value: bigint, inDollars: number): bigint => {
-  return (value / BigInt(Math.round(inDollars * 100000000))) * 100000000n;
+  return trimValue(
+    (value / BigInt(Math.round(inDollars * 100000000))) * 100000000n
+  );
 };

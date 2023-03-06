@@ -4,6 +4,7 @@ import { Contract } from 'web3-eth-contract';
 import erc20abi from '../abi/erc20.json';
 import { Memoize } from 'typescript-memoize';
 import { DEFAULT_DECIMALS } from '../utils/decimals';
+import { ETH } from '../config';
 
 export interface ERC20 {
   readonly address: string;
@@ -49,7 +50,7 @@ export class EthERC20 implements ERC20 {
   }
 
   get address(): string {
-    throw new Error('Method not implemented.');
+    return ETH.address;
   }
 
   async getDecimals(): Promise<bigint> {
@@ -64,3 +65,10 @@ export class EthERC20 implements ERC20 {
     return 'ETH';
   }
 }
+
+export const getERC20 = (web3: Web3, address: string): ERC20 => {
+  if (address === ETH.address) {
+    return EthERC20.getInstanceOf();
+  }
+  return RealERC20.getInstanceOf(web3, address);
+};
