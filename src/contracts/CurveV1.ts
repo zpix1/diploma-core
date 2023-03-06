@@ -116,15 +116,6 @@ export class CurveV1Exchange extends BaseXYDEX implements DEX {
     from: ERC20,
     to: ERC20
   ): Promise<bigint> {
-    console.log(
-      'curve',
-      this.address,
-      from.address,
-      to.address,
-      await from.symbol(),
-      await to.symbol(),
-      amountInDecimals
-    );
     return BigInt(
       await this.registry.methods
         .get_exchange_amount(
