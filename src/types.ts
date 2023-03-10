@@ -35,13 +35,13 @@ export type SearchResult = {
   endBlock: number;
   config: Config;
   capital: FormattedCapital;
+  startToken: string;
 } & (
   | {
       status: 'NOT FOUND';
     }
   | {
       status: 'FOUND';
-      startToken: string;
       startValue: FormattedCapital;
       endValue: FormattedCapital;
       rate: number;

@@ -30,16 +30,17 @@ import { objMap } from './utils/format';
 import { DMGraph, GraphVertex, bellmanFord } from './utils/graph';
 
 const DEFAULT_CAPS_SET = [
-  5n * 10n ** 16n,
-  10n ** 17n,
-  5n * 10n ** 17n,
-  10n ** 18n,
-  5n * 10n ** 18n,
-  10n ** 19n,
+  // 5n * 10n ** 16n,
+  // 10n ** 17n,
+  // 5n * 10n ** 17n,
+  // 10n ** 18n,
+  // 5n * 10n ** 18n,
+  // 10n ** 19n,
   5n * 10n ** 19n,
   10n ** 20n,
   10n ** 21n,
-  10n ** 22n
+  10n ** 22n,
+  10n ** 23n
 ] as const;
 
 export class Worker {
@@ -227,9 +228,11 @@ export class Worker {
     let totalGas = 0n;
     for (let i = 1; i < cycle.length; i++) {
       const newCur = cycle[i];
-      const edge = graph
-        .getEdges(cur, newCur)
-        ?.reduce((a, b) => (a.distance < b.distance ? a : b));
+      const toEdges = graph.getEdges(cur, newCur);
+      if (toEdges?.length === 0) {
+        throw new Error('Invalid cycle');
+      }
+      const edge = toEdges?.reduce((a, b) => (a.distance < b.distance ? a : b));
       if (!edge) {
         throw new Error('Failed to find edge');
       }
@@ -336,10 +339,19 @@ export class Worker {
         console.log(`Got ${edges.length} edges`);
         const graph = this.createGraph(edges);
         console.log('got graph', graph.toString());
+        const usedCycles: Set<string> = new Set();
         for (const start of graph.getAllVertices()) {
           const distances = bellmanFord(graph, start);
 
           if (distances.hasNegativeCycle) {
+            const cycleDesc = distances.negativeCycle.slice().sort().join(',');
+
+            if (usedCycles.has(cycleDesc)) {
+              continue;
+            }
+
+            usedCycles.add(cycleDesc);
+
             const {
               startToken,
               startValue,
@@ -395,21 +407,24 @@ export class Worker {
               config,
               totalGas
             });
+          } else {
+            const endBlock = await (
+              await this.web3.eth.getBlock('latest')
+            ).number;
 
-            return;
+            results.push({
+              startBlock,
+              endBlock,
+              capital: `${TokenDecimal.fromAbsoluteValue(
+                testAmount,
+                DEFAULT_DECIMALS
+              )}`,
+              startToken: start,
+              status: 'NOT FOUND',
+              config
+            });
           }
         }
-        const endBlock = await (await this.web3.eth.getBlock('latest')).number;
-        results.push({
-          startBlock,
-          endBlock,
-          capital: `${TokenDecimal.fromAbsoluteValue(
-            testAmount,
-            DEFAULT_DECIMALS
-          )}`,
-          status: 'NOT FOUND',
-          config
-        });
       })
     );
 
