@@ -28,14 +28,15 @@ import {
 } from './utils/decimals';
 import { objMap } from './utils/format';
 import { DMGraph, GraphVertex, bellmanFord } from './utils/graph';
+import { BancorV3Factory } from './contracts/BancorV3';
 
 const DEFAULT_CAPS_SET = [
   // 5n * 10n ** 16n,
   // 10n ** 17n,
   // 5n * 10n ** 17n,
   // 10n ** 18n,
-  // 5n * 10n ** 18n,
-  // 10n ** 19n,
+  5n * 10n ** 18n,
+  10n ** 19n,
   5n * 10n ** 19n,
   10n ** 20n,
   10n ** 21n,
@@ -51,6 +52,11 @@ export class Worker {
   public constructor() {
     this.web3 = new Web3(Web3.givenProvider || DEFAULT_WEB3_PROVIDER_URL);
     this.factories = [
+      new BancorV3Factory(
+        this.web3,
+        'Bancor V3',
+        '0x8E303D296851B320e6a697bAcB979d13c9D6E760'
+      ),
       new UniswapV1Factory(
         this.web3,
         'Uniswap V1',
@@ -126,6 +132,8 @@ export class Worker {
           const xyRatio = Number(toValue) / Number(fromValueOrigin);
           const yxRatio = Number(fromValue) / Number(toValueOrigin);
 
+          console.log(contract.X, contract.Y, xyRatio, yxRatio);
+
           // console.log(
           //   `Can swap ${contract.X}->${contract.Y} with ratio ${xyRatio} on ${contract} (${fromValue} -> ${toValue})`
           // );
@@ -151,7 +159,7 @@ export class Worker {
               toValue,
               contract,
               toString: () => contract.toString()
-            },
+            } as ExchangeGraphEdge,
             {
               direction: 'YX',
               from: contract.Y,
@@ -162,7 +170,7 @@ export class Worker {
               toValue: fromValue,
               contract,
               toString: () => contract.toString()
-            }
+            } as ExchangeGraphEdge
           );
         } catch (e) {
           console.error(`error while loading ${contract}`, e);
