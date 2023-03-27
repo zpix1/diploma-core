@@ -101,6 +101,13 @@ export const TOKENS = [
     address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
     inDollars: 22300,
     isVirtual: false
+  },
+  {
+    id: 'BNT',
+    description: 'Bancor Token',
+    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    inDollars: 0.55,
+    isVirtual: false
   }
 ] as const satisfies readonly TokenInfo[];
 

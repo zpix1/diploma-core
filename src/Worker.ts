@@ -250,7 +250,7 @@ export class Worker {
         edge.direction
       );
 
-      const gas = 0n;
+      // let gas = 0n;
       // try {
       //   gas = await edge.contract.estimateGasForSwap(
       //     curResult.absoluteValue,
@@ -258,7 +258,7 @@ export class Worker {
       //     edge.direction
       //   );
       // } catch (e) {
-      //   console.log(e);
+      //   console.error('error while loading gas', e);
       // }
 
       rate *= edge.ratio;
