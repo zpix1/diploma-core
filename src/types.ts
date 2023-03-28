@@ -35,6 +35,7 @@ export type SearchResult = {
   endBlock: number;
   config: Config;
   capital: FormattedCapital;
+  capitalInUSD: FormattedCapitalUSD;
   startToken: string;
 } & (
   | {
@@ -48,7 +49,6 @@ export type SearchResult = {
       profit: number;
       _profitInUSD: number;
       profitInUSD: FormattedCapitalUSD;
-      capitalInUSD: FormattedCapitalUSD;
       profitPercent: FormattedPercent;
       realRate: number;
       strategy: StrategyEntry[];

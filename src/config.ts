@@ -115,3 +115,28 @@ export type Token = typeof TOKENS[number];
 export type TokenId = Token['id'];
 export const TOKENS_MAP = new Map(TOKENS.map(t => [t.id, t]));
 export const TOKEN_ID_LIST = TOKENS.map(({ id }) => id);
+
+export const FACTORIES = [
+  'Bancor V3',
+  'Uniswap V1',
+  'Uniswap V2',
+  'Uniswap V3',
+  'Curve V1'
+] as const;
+export type Factory = typeof FACTORIES[number];
+
+export const DEFAULT_CAPS_SET = [
+  // 5n * 10n ** 16n,
+  // 10n ** 17n,
+  // 5n * 10n ** 17n,
+  // 10n ** 18n,
+  5n * 10n ** 18n,
+  10n ** 19n,
+  5n * 10n ** 19n,
+  10n ** 20n,
+  10n ** 21n,
+  10n ** 22n,
+  10n ** 23n
+] as const;
+
+export const DOLLARS_CAPS_SET = DEFAULT_CAPS_SET.map(c => Number(c) / 10 ** 18);

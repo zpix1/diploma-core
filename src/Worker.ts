@@ -1,11 +1,14 @@
 import Web3 from 'web3';
 
 import {
+  DEFAULT_CAPS_SET,
   DEFAULT_WEB3_PROVIDER_URL,
-  TOKENS,
   TOKENS_MAP,
+  TOKEN_ID_LIST,
+  Token,
   TokenId
 } from './config';
+import { BancorV3Factory } from './contracts/BancorV3';
 import { CurveV1Factory } from './contracts/CurveV1';
 import { DEX } from './contracts/DEX';
 import { DEXFactory } from './contracts/DEXFactory';
@@ -28,21 +31,6 @@ import {
 } from './utils/decimals';
 import { objMap } from './utils/format';
 import { DMGraph, GraphVertex, bellmanFord } from './utils/graph';
-import { BancorV3Factory } from './contracts/BancorV3';
-
-const DEFAULT_CAPS_SET = [
-  // 5n * 10n ** 16n,
-  // 10n ** 17n,
-  // 5n * 10n ** 17n,
-  // 10n ** 18n,
-  5n * 10n ** 18n,
-  10n ** 19n,
-  5n * 10n ** 19n,
-  10n ** 20n,
-  10n ** 21n,
-  10n ** 22n,
-  10n ** 23n
-] as const;
 
 export class Worker {
   readonly web3: Web3;
@@ -78,14 +66,23 @@ export class Worker {
     ];
   }
 
-  private async getAllContracts(): Promise<DEX[]> {
+  private async getAllContracts({
+    usedTokens,
+    usedFactories
+  }: {
+    usedTokens: Token[];
+    usedFactories: string[];
+  }): Promise<DEX[]> {
     const contracts: DEX[] = [];
 
-    for (const factory of this.factories) {
+    const usedFactoriesSet = new Set(usedFactories);
+    const factories = this.factories.filter(f => usedFactoriesSet.has(f.name));
+
+    for (const factory of factories) {
       const setupContracts = (
         await Promise.all(
           (
-            await factory.getSomeDEXes(TOKENS)
+            await factory.getSomeDEXes(usedTokens)
           ).map(async contract => {
             try {
               await contract.setup();
@@ -250,7 +247,7 @@ export class Worker {
         edge.direction
       );
 
-      // let gas = 0n;
+      const gas = 0n;
       // try {
       //   gas = await edge.contract.estimateGasForSwap(
       //     curResult.absoluteValue,
@@ -316,6 +313,10 @@ export class Worker {
     };
   }
 
+  public getAllFactoryNames(): string[] {
+    return this.factories.map(f => f.name);
+  }
+
   public async doSearch(props: {
     reloadContracts?: boolean;
     blockNumber?: number | 'latest';
@@ -323,24 +324,39 @@ export class Worker {
     usedTokens?: TokenId[];
     usedFactories?: string[];
   }): Promise<SearchResult[]> {
-    const startBlock = await (await this.web3.eth.getBlock('latest')).number;
+    const startBlock = await (async (): Promise<number> => {
+      if (props.blockNumber === undefined || props.blockNumber === 'latest') {
+        return (await this.web3.eth.getBlock('latest')).number;
+      }
+      return props.blockNumber;
+    })();
     const capsSet = props.capsSet ?? DEFAULT_CAPS_SET;
+    const usedTokens = props.usedTokens ?? TOKEN_ID_LIST;
+    const usedTokenInfos = usedTokens.map(t => TOKENS_MAP.get(t)) as Token[];
+    const usedFactoryNames = props.usedFactories ?? this.getAllFactoryNames();
 
-    this.web3.eth.defaultBlock = props.blockNumber ?? startBlock;
-    const results: SearchResult[] = [];
+    this.web3.eth.defaultBlock = startBlock;
+
     if (props?.reloadContracts || this.contracts === undefined) {
-      this.contracts = await this.getAllContracts();
+      this.contracts = await this.getAllContracts({
+        usedTokens: usedTokenInfos,
+        usedFactories: usedFactoryNames
+      });
       console.log(`Got ${this.contracts.length} contracts`);
     }
+
     const contracts = this.contracts;
     if (!contracts) {
       throw new Error('contracts are undefined');
     }
+
     const config = {
-      usedTokens: TOKENS.map(({ id }) => id),
-      usedFactories: this.factories.map(({ name }) => name),
+      usedTokens,
+      usedFactories: usedFactoryNames,
       contractsCount: contracts.length
     } satisfies Config;
+
+    const results: SearchResult[] = [];
     await Promise.all(
       capsSet.map(async testAmount => {
         const edges = await this.getAllRatios(contracts, testAmount);
@@ -429,6 +445,10 @@ export class Worker {
               )}`,
               startToken: start,
               status: 'NOT FOUND',
+              capitalInUSD: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+              }).format(testAmount / 10n ** DEFAULT_DECIMALS),
               config
             });
           }
