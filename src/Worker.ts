@@ -37,8 +37,8 @@ export class Worker {
   readonly factories: DEXFactory[];
   private contracts?: DEX[];
 
-  public constructor() {
-    this.web3 = new Web3(Web3.givenProvider || DEFAULT_WEB3_PROVIDER_URL);
+  public constructor(props: { web3ProviderUrl: string }) {
+    this.web3 = new Web3(props.web3ProviderUrl || Web3.givenProvider);
     this.factories = [
       new BancorV3Factory(
         this.web3,
