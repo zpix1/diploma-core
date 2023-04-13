@@ -2,7 +2,6 @@ import Web3 from 'web3';
 
 import {
   DEFAULT_CAPS_SET,
-  DEFAULT_WEB3_PROVIDER_URL,
   TOKENS_MAP,
   TOKEN_ID_LIST,
   Token,
