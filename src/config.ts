@@ -1,5 +1,3 @@
-export { DEFAULT_WEB3_PROVIDER_URL } from './privateConfig';
-
 type TokenInfo = {
   id: string;
   description: string;
