@@ -10,10 +10,12 @@ import { combinations } from '../utils/arrays';
 import { BaseXYDEX, DEX } from './DEX';
 import { DEXFactory } from './DEXFactory';
 import { ERC20, getERC20 } from './ERC20';
+import { Web3Balancer } from '../utils/web3Balancer';
 
 export class UniswapV3Factory implements DEXFactory {
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     public readonly name: string,
     private readonly quoterAddress: string
   ) {}
@@ -47,6 +49,7 @@ export class UniswapV3Factory implements DEXFactory {
             res.push(
               new UniswapV3Exchange(
                 this.web3,
+                this.balancer,
                 x.id,
                 y.id,
                 x.address,
@@ -76,6 +79,7 @@ export class UniswapV3Exchange extends BaseXYDEX implements DEX {
 
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     readonly X: TokenId,
     readonly Y: TokenId,
     private readonly XAdr: string,
@@ -92,15 +96,15 @@ export class UniswapV3Exchange extends BaseXYDEX implements DEX {
     to: ERC20
   ): Promise<bigint> {
     return BigInt(
-      await this.quoter.methods
-        .quoteExactInputSingle(
+      await this.balancer.scheduleCall<string>(
+        this.quoter.methods.quoteExactInputSingle(
           from.address,
           to.address,
           this.fee,
           amountInDecimals,
           0
         )
-        .call()
+      )
     );
   }
   protected async _estimateGasForSwap(
@@ -137,9 +141,9 @@ export class UniswapV3Exchange extends BaseXYDEX implements DEX {
     );
 
     const [token0Adr, token1Adr, fee] = await Promise.all([
-      poolContract.methods.token0().call(),
-      poolContract.methods.token1().call(),
-      poolContract.methods.fee().call()
+      this.balancer.scheduleCall<string>(poolContract.methods.token0()),
+      this.balancer.scheduleCall<string>(poolContract.methods.token1()),
+      this.balancer.scheduleCall<string>(poolContract.methods.fee())
     ]);
 
     if (Number(fee) !== this.fee) {

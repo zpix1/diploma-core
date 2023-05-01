@@ -11,10 +11,12 @@ import uniswapV2RouterABI from '../abi/uniswap_v2_router02.json';
 import { combinations } from '../utils/arrays';
 import { TokenDecimal } from '../utils/decimals';
 import { ERC20, getERC20 } from './ERC20';
+import { Web3Balancer } from '../utils/web3Balancer';
 
 export class UniswapV2Factory implements DEXFactory {
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     public readonly name: string,
     private readonly factoryAddress: string,
     private readonly routerAddress: string
@@ -41,9 +43,12 @@ export class UniswapV2Factory implements DEXFactory {
           });
           return new UniswapV2Exchange(
             this.web3,
+            this.balancer,
             x.id,
             y.id,
-            await contract.methods.getPair(x.address, y.address).call(),
+            await this.balancer.scheduleCall<string>(
+              contract.methods.getPair(x.address, y.address)
+            ),
             new this.web3.eth.Contract(
               uniswapV2RouterABI as never,
               this.routerAddress
@@ -65,6 +70,7 @@ export class UniswapV2Exchange extends BaseXYDEX implements DEX {
 
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     readonly X: TokenId,
     readonly Y: TokenId,
     readonly address: string,
@@ -85,23 +91,23 @@ export class UniswapV2Exchange extends BaseXYDEX implements DEX {
   ): Promise<bigint> {
     if (direction === 'XY') {
       return BigInt(
-        await this.router.methods
-          .getAmountOut(
+        await this.balancer.scheduleCall<string>(
+          this.router.methods.getAmountOut(
             amountInDecimals,
             this.reserveX.valueInDecimals,
             this.reserveY.valueInDecimals
           )
-          .call()
+        )
       );
     } else {
       return BigInt(
-        await this.router.methods
-          .getAmountOut(
+        await this.balancer.scheduleCall<string>(
+          this.router.methods.getAmountOut(
             amountInDecimals,
             this.reserveY.valueInDecimals,
             this.reserveX.valueInDecimals
           )
-          .call()
+        )
       );
     }
   }
@@ -127,14 +133,23 @@ export class UniswapV2Exchange extends BaseXYDEX implements DEX {
   }
 
   async setup(): Promise<void> {
-    const result = await this.contract.methods.getReserves().call();
+    const result = await this.balancer.scheduleCall<{
+      reserve0: string;
+      reserve1: string;
+    }>(this.contract.methods.getReserves());
     const [reserve0, reserve1] = [result.reserve0, result.reserve1].map(x =>
       BigInt(x)
     );
 
-    this.t0 = getERC20(this.web3, await this.contract.methods.token0().call());
+    this.t0 = getERC20(
+      this.web3,
+      await this.balancer.scheduleCall<string>(this.contract.methods.token0())
+    );
 
-    this.t1 = getERC20(this.web3, await this.contract.methods.token1().call());
+    this.t1 = getERC20(
+      this.web3,
+      await this.balancer.scheduleCall<string>(this.contract.methods.token1())
+    );
 
     this.reserveX = TokenDecimal.fromValueInDecimals(
       reserve0,

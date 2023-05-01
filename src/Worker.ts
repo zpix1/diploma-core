@@ -30,34 +30,48 @@ import {
 } from './utils/decimals';
 import { objMap } from './utils/format';
 import { DMGraph, GraphVertex, bellmanFord } from './utils/graph';
+import { Web3Balancer } from './utils/web3Balancer';
 
 export class Worker {
   readonly web3: Web3;
   readonly factories: DEXFactory[];
   private contracts?: DEX[];
+  private readonly balancer: Web3Balancer;
 
-  public constructor(props: { web3ProviderUrl: string }) {
+  public constructor(props: { web3ProviderUrl: string; maxTPS: number }) {
     this.web3 = new Web3(props.web3ProviderUrl || Web3.givenProvider);
+    this.balancer = new Web3Balancer({
+      maxTPS: props.maxTPS
+    });
     this.factories = [
       new BancorV3Factory(
         this.web3,
+        this.balancer,
         'Bancor V3',
         '0x8E303D296851B320e6a697bAcB979d13c9D6E760'
       ),
       new UniswapV1Factory(
         this.web3,
+        this.balancer,
         'Uniswap V1',
         '0xc0a47dFe034B400B47bDaD5FecDa2621de6c4d95'
       ),
       new UniswapV2Factory(
         this.web3,
+        this.balancer,
         'Uniswap V2',
         '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f',
         '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
       ),
-      new UniswapV3Factory(this.web3, 'Uniswap V3', QUOTER_CONTRACT_ADDRESS),
+      new UniswapV3Factory(
+        this.web3,
+        this.balancer,
+        'Uniswap V3',
+        QUOTER_CONTRACT_ADDRESS
+      ),
       new CurveV1Factory(
         this.web3,
+        this.balancer,
         'Curve V1',
         '0x99a58482BD75cbab83b27EC03CA68fF489b5788f',
         '0x90E00ACe148ca3b23Ac1bC8C240C2a7Dd9c2d7f5'
@@ -76,6 +90,7 @@ export class Worker {
 
     const usedFactoriesSet = new Set(usedFactories);
     const factories = this.factories.filter(f => usedFactoriesSet.has(f.name));
+    console.log(usedFactories, factories);
 
     for (const factory of factories) {
       const setupContracts = (

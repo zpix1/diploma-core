@@ -9,22 +9,28 @@ type Task = {
   reject: (T: any) => void;
 };
 
-const MAX_TPS = 50;
+type Web3BalancerProps = {
+  maxTPS: number;
+};
 
-class Web3Balancer {
+export class Web3Balancer {
+  private readonly maxTPS: number;
   private currentTPS = 0;
   private taskQueue: Task[] = [];
-  private intervalId: NodeJS.Timer;
+  private intervalId?: NodeJS.Timer;
 
-  constructor() {
-    this.intervalId = setInterval(() => {
-      this.currentTPS = 0;
-      this.runTasks();
-    }, 1000);
+  constructor(props: Web3BalancerProps) {
+    this.maxTPS = props.maxTPS;
+    if (this.maxTPS !== Infinity) {
+      this.intervalId = setInterval(() => {
+        this.currentTPS = 0;
+        this.runTasks();
+      }, 1000);
+    }
   }
 
   public dispose(): void {
-    clearInterval(this.intervalId);
+    this.intervalId !== undefined && clearInterval(this.intervalId);
   }
 
   public scheduleCall<T>(method: ContractSendMethod): Promise<T> {
@@ -34,6 +40,9 @@ class Web3Balancer {
       resolve: deferred.resolve,
       reject: deferred.reject
     });
+    if (this.maxTPS === Infinity) {
+      this.runTasks();
+    }
     return deferred.promise;
   }
 
@@ -45,7 +54,7 @@ class Web3Balancer {
   }
 
   private runTasks(): void {
-    while (this.currentTPS <= MAX_TPS) {
+    while (this.currentTPS <= this.maxTPS) {
       const task = this.taskQueue.pop();
       if (task) {
         this.executeTask(task);
@@ -56,5 +65,3 @@ class Web3Balancer {
     }
   }
 }
-
-export const Balancer = new Web3Balancer();

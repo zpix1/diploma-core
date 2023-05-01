@@ -6,10 +6,11 @@ import { BaseXYDEX, DEX } from './DEX';
 import { DEXFactory } from './DEXFactory';
 
 import { combinations } from '../utils/arrays';
-import { ERC20, RealERC20, getERC20 } from './ERC20';
+import { ERC20, getERC20 } from './ERC20';
 
 import curveV1AddressRegistryABI from '../abi/curve_v1_address_registry.json';
 import curveV1ExchangeRegistryABI from '../abi/curve_v1_registry.json';
+import { Web3Balancer } from '../utils/web3Balancer';
 
 interface PrecreatedPool {
   tokens: TokenId[];
@@ -26,6 +27,7 @@ const precreatedPools: PrecreatedPool[] = [
 export class CurveV1Factory implements DEXFactory {
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     public readonly name: string,
     private readonly exchangeRegistryAddress: string,
     private readonly poolRegistryAddress: string
@@ -59,6 +61,7 @@ export class CurveV1Factory implements DEXFactory {
             result.push(
               new CurveV1Exchange(
                 this.web3,
+                this.balancer,
                 x.id,
                 y.id,
                 x,
@@ -71,12 +74,13 @@ export class CurveV1Factory implements DEXFactory {
         }
 
         for (let i = 0; i < 2; i++) {
-          const poolAddress = await poolRegistry.methods
-            .find_pool_for_coins(x.address, y.address, i)
-            .call();
+          const poolAddress = await this.balancer.scheduleCall<string>(
+            poolRegistry.methods.find_pool_for_coins(x.address, y.address, i)
+          );
           result.push(
             new CurveV1Exchange(
               this.web3,
+              this.balancer,
               x.id,
               y.id,
               x,
@@ -101,6 +105,7 @@ export class CurveV1Exchange extends BaseXYDEX implements DEX {
 
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     readonly X: TokenId,
     readonly Y: TokenId,
     readonly XTokenData: Token,
@@ -117,14 +122,14 @@ export class CurveV1Exchange extends BaseXYDEX implements DEX {
     to: ERC20
   ): Promise<bigint> {
     return BigInt(
-      await this.registry.methods
-        .get_exchange_amount(
+      await await this.balancer.scheduleCall<string>(
+        this.registry.methods.get_exchange_amount(
           this.address,
           from.address,
           to.address,
           amountInDecimals
         )
-        .call()
+      )
     );
   }
 

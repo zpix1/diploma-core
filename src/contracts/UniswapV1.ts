@@ -8,10 +8,12 @@ import { DEXFactory } from './DEXFactory';
 import uniswapV1ExchangeABI from '../abi/uniswap_v1.json';
 import uniswapV1FactoryABI from '../abi/uniswap_v1_factory.json';
 import { ERC20, EthERC20, getERC20 } from './ERC20';
+import { Web3Balancer } from '../utils/web3Balancer';
 
 export class UniswapV1Factory implements DEXFactory {
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     public readonly name: string,
     private readonly address: string
   ) {}
@@ -30,8 +32,11 @@ export class UniswapV1Factory implements DEXFactory {
             async ({ id, address }) =>
               new UniswapV1Exchange(
                 this.web3,
+                this.balancer,
                 id,
-                await contract.methods.getExchange(address).call()
+                await this.balancer.scheduleCall<string>(
+                  contract.methods.getExchange(address)
+                )
               )
           )
       )
@@ -47,6 +52,7 @@ export class UniswapV1Exchange extends BaseXYDEX implements DEX {
 
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     readonly Y: TokenId,
     readonly address: string
   ) {
@@ -63,15 +69,15 @@ export class UniswapV1Exchange extends BaseXYDEX implements DEX {
   ): Promise<bigint> {
     if ((await from.symbol()) === 'ETH') {
       return BigInt(
-        await this.contract.methods
-          .getEthToTokenInputPrice(amountInDecimals)
-          .call()
+        await this.balancer.scheduleCall<string>(
+          await this.contract.methods.getEthToTokenInputPrice(amountInDecimals)
+        )
       );
     } else {
       return BigInt(
-        await this.contract.methods
-          .getTokenToEthInputPrice(amountInDecimals)
-          .call()
+        await await this.balancer.scheduleCall<string>(
+          this.contract.methods.getTokenToEthInputPrice(amountInDecimals)
+        )
       );
     }
   }
@@ -105,7 +111,9 @@ export class UniswapV1Exchange extends BaseXYDEX implements DEX {
 
   async setup(): Promise<void> {
     this.t0 = getERC20(this.web3, ETH.address);
-    const tokenAddress = await this.contract.methods.tokenAddress().call();
+    const tokenAddress = await this.balancer.scheduleCall<string>(
+      this.contract.methods.tokenAddress()
+    );
     this.t1 = getERC20(this.web3, tokenAddress);
     await this.checkBalance(this.t1, this.address);
   }

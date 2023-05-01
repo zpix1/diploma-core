@@ -6,10 +6,12 @@ import { BaseXYDEX, DEX } from './DEX';
 import { DEXFactory } from './DEXFactory';
 import { ERC20, getERC20 } from './ERC20';
 import NetworkInfoAbi from '../abi/bancor_v3_network_info.json';
+import { Web3Balancer } from '../utils/web3Balancer';
 
 export class BancorV3Factory implements DEXFactory {
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     public readonly name: string,
     private readonly networkInfoAddress: string
   ) {}
@@ -35,6 +37,7 @@ export class BancorV3Factory implements DEXFactory {
           });
           return new BancorV3Exchange(
             this.web3,
+            this.balancer,
             x.id,
             y.id,
             x.address,
@@ -54,6 +57,7 @@ export class BancorV3Exchange extends BaseXYDEX implements DEX {
 
   constructor(
     private readonly web3: Web3,
+    private readonly balancer: Web3Balancer,
     readonly X: TokenId,
     readonly Y: TokenId,
     private readonly XAdr: string,
@@ -70,9 +74,13 @@ export class BancorV3Exchange extends BaseXYDEX implements DEX {
     to: ERC20
   ): Promise<bigint> {
     const res = BigInt(
-      await this.networkInfo.methods
-        .tradeOutputBySourceAmount(from.address, to.address, amountInDecimals)
-        .call()
+      await this.balancer.scheduleCall<string>(
+        this.networkInfo.methods.tradeOutputBySourceAmount(
+          from.address,
+          to.address,
+          amountInDecimals
+        )
+      )
     );
     // console.log(await from.symbol(), await to.symbol(), amountInDecimals, res);
     return res;
