@@ -1,4 +1,4 @@
-# DeFi Arbitrageur: Core
+# DeFi Arbitrageur: core
 
 Core lib of NSU diploma project, toolkit to search for arbitrage possibilities using Ethereum DEXes.
 
@@ -25,7 +25,7 @@ Code example:
 ```typescript
 import { Worker } from "diploma-core";
 
-const web3Uri = '<YOUR_WEB3_PROVIDER_URI>'
+const web3Uri = '<YOUR_WEB3_PROVIDER_URI>';
 
 const main = async () => {
   const worker = new Worker({
