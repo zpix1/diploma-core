@@ -56,7 +56,7 @@ export const TOKENS = [
     description: 'Wrapped Ether',
     address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     isVirtual: false,
-    inDollars: 1300
+    inDollars: 1889
   },
   {
     id: 'SHIB',
@@ -106,6 +106,27 @@ export const TOKENS = [
     address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
     inDollars: 0.55,
     isVirtual: false
+  },
+  {
+    id: 'CRO', 
+    description: 'CRO token',
+    address: '0xA0b73E1Ff0B80914AB6fe0444E65848C4C34450b',
+    inDollars: 1,
+    isVirtual: false
+  },
+  {
+    id: 'POLY', 
+    description: 'POLY token',
+    address: '0x9992eC3cF6A55b00978cdDF2b27BC6882d88D1eC',
+    inDollars: 0.13,
+    isVirtual: false
+  },
+  {
+    id: 'DYP', 
+    description: 'DYP token',
+    address: '0x961C8c0B1aaD0c0b10a51FeF6a867E3091BCef17',
+    inDollars: 0.24,
+    isVirtual: false
   }
 ] as const satisfies readonly TokenInfo[];
 
@@ -134,6 +155,7 @@ export const DEFAULT_CAPS_SET = [
   10n ** 20n,
   10n ** 21n,
   10n ** 22n,
+  5n * 10n ** 22n,
   10n ** 23n
 ] as const;
 

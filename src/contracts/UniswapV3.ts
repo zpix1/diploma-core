@@ -146,6 +146,8 @@ export class UniswapV3Exchange extends BaseXYDEX implements DEX {
       this.balancer.scheduleCall<string>(poolContract.methods.fee())
     ]);
 
+    console.log(token0Adr, token1Adr, fee)
+
     if (Number(fee) !== this.fee) {
       throw new Error(`invalid token fee: ${fee} != ${this.fee}`);
     }

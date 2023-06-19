@@ -110,17 +110,17 @@ export abstract class BaseXYDEX extends BaseDEX {
   }
 
   protected async checkBalance(token: ERC20, address: string): Promise<void> {
-    const tokenInDollars = TOKENS_MAP.get(
-      (await token.symbol()) as TokenId
-    )?.inDollars;
-    if (tokenInDollars === undefined) {
-      throw new Error(`invalid token ${await token.symbol()}`);
-    }
-    const valueInDecimals = await this.t1.balanceOf(address);
-    const valueInDollars = normalizeValue(valueInDecimals, tokenInDollars);
-    if (valueInDollars < 10n ** (await this.t1.getDecimals()) * 1n) {
-      throw new Error(`balance too low ${await token.symbol()}: ${address}`);
-    }
+    // const tokenInDollars = TOKENS_MAP.get(
+    //   (await token.symbol()) as TokenId
+    // )?.inDollars;
+    // if (tokenInDollars === undefined) {
+    //   throw new Error(`invalid token ${await token.symbol()}`);
+    // }
+    // const valueInDecimals = await this.t1.balanceOf(address);
+    // const valueInDollars = normalizeValue(valueInDecimals, tokenInDollars);
+    // if (valueInDollars < 10n ** (await this.t1.getDecimals()) * 1n) {
+    //   throw new Error(`balance too low ${await token.symbol()}: ${address}`);
+    // }
   }
 
   protected abstract _estimateGasForSwap(

@@ -143,22 +143,6 @@ export class Worker {
           const xyRatio = Number(toValue) / Number(fromValueOrigin);
           const yxRatio = Number(fromValue) / Number(toValueOrigin);
 
-          console.log(contract.X, contract.Y, xyRatio, yxRatio);
-
-          // console.log(
-          //   `Can swap ${contract.X}->${contract.Y} with ratio ${xyRatio} on ${contract} (${fromValue} -> ${toValue})`
-          // );
-          // console.log(
-          //   `Can swap ${contract.Y}->${contract.X} with ratio ${yxRatio} on ${contract} (${toValue} -> ${backValue})`
-          // );
-
-          // if (
-          //   bigIntMinAndMax(fromValue, toValue, backValue)[0] < VALUE_THRESHOLD
-          // ) {
-          //   // console.log('skipping as some of values are too small');
-          //   return;
-          // }
-
           edges.push(
             {
               direction: 'XY',
@@ -196,27 +180,6 @@ export class Worker {
     const graph = new DMGraph<ExchangeGraphEdge>();
     edges.forEach(edge => graph.addEdge(edge));
     return graph;
-  }
-
-  public test(): void {
-    const G = new DMGraph();
-    G.addEdge({
-      from: 'A',
-      to: 'B',
-      distance: 1
-    });
-    G.addEdge({
-      from: 'B',
-      to: 'C',
-      distance: 1
-    });
-    G.addEdge({
-      from: 'A',
-      to: 'C',
-      distance: 0.1
-    });
-
-    console.log(bellmanFord(G, 'A'));
   }
 
   private async checkCycle(
