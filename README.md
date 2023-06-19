@@ -1,4 +1,4 @@
-# DeFi Arbitrageur 
+# DeFi Arbitrageur: Core
 
 Core lib of NSU diploma project, toolkit to search for arbitrage possibilities using Ethereum DEXes.
 
